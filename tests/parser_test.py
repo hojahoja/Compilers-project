@@ -23,21 +23,40 @@ class TestParser(TestCase):
         self.assertEqual(expect, result)
 
     def test_binary_expression_with_multiple_variables_and_literals_into_ast_node(self):
-        tokens = tokenize("2 - variable + 2 + x")
+        tokens = tokenize("2 - variable + 3 + x")
         result = parse(tokens)
 
         minus = ast.BinaryOp(ast.Literal(2), "-", ast.Identifier("variable"))
-        plus2 = ast.BinaryOp(minus, "+", ast.Literal(2))
+        plus2 = ast.BinaryOp(minus, "+", ast.Literal(3))
         expect = ast.BinaryOp(plus2, "+", ast.Identifier("x"))
 
         self.assertEqual(expect, result)
 
-
     def test_binary_parse_expression_right_associative(self):
-        tokens = tokenize("2 - variable + 2 + x")
+        tokens = tokenize("2 - variable + 3 + x")
         result = parse(tokens, left_ast=False)
 
-        plus2 = ast.BinaryOp(ast.Literal(2), "+", ast.Identifier("x"))
+        plus2 = ast.BinaryOp(ast.Literal(3), "+", ast.Identifier("x"))
+        plus1 = ast.BinaryOp(ast.Identifier("variable"), "+", plus2)
+        expect = ast.BinaryOp(ast.Literal(2), "-", plus1)
+
+        self.assertEqual(expect, result)
+
+    def test_binary_parse_expression_multiplication(self):
+        tokens = tokenize("2 - variable * 3 + x")
+        result = parse(tokens)
+
+        multi = ast.BinaryOp(ast.Identifier("variable"), "*", ast.Literal(3))
+        minus = ast.BinaryOp(ast.Literal(2), "-", multi)
+        expect = ast.BinaryOp(minus, "+", ast.Identifier("x"))
+
+        self.assertEqual(expect, result)
+
+    def test_binary_parse_expression_parenthesized(self):
+        tokens = tokenize("2 - (variable + (3 + x))")
+        result = parse(tokens)
+
+        plus2 = ast.BinaryOp(ast.Literal(3), "+", ast.Identifier("x"))
         plus1 = ast.BinaryOp(ast.Identifier("variable"), "+", plus2)
         expect = ast.BinaryOp(ast.Literal(2), "-", plus1)
 
