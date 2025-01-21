@@ -61,3 +61,10 @@ class TestParser(TestCase):
         expect = ast.BinaryOp(ast.Literal(2), "-", plus1)
 
         self.assertEqual(expect, result)
+
+    #TODO need more than this
+    def test_for_input_errors(self):
+        tokens = tokenize("4 + 3 5")
+
+        msg = "could not parse the whole expression"
+        self.assertRaisesRegex(SyntaxError, msg, parse, tokens)

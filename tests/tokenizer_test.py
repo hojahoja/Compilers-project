@@ -105,8 +105,46 @@ class TestTokenizer(TestCase):
         with self.assertRaises(SyntaxError):
             tokenize("while @  if True")
 
-    def test_token_defined_with_place_holder_location_by_default(self):
-        self.location_patcher.stop()
-        placeholder = Location("placeholder", 0, 0)
+        msg = "Unrecognized character: @"
+        self.assertRaisesRegex(SyntaxError, msg, tokenize, "while @  if True")
 
-        self.assertEqual([Token("identifier", "variableName", placeholder)], tokenize("variableName"))
+    def test_column_location(self):
+        self.location_patcher.stop()
+        tokens = tokenize("    3 +  4")
+        columns = [t.location.column for t in tokens]
+        self.assertEqual([5, 7, 10], columns)
+
+    def test_line_location(self):
+        self.location_patcher.stop()
+        code = """
+        // commentary
+        if (3 + 2) == 5
+            x = 2
+        """
+        tokens = tokenize(code)
+        lines = [t.location.line for t in tokens]
+
+        self.assertEqual([3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4], lines)
+
+    def test_line_and_column_location_file_name_creation_for_token(self):
+        self.location_patcher.stop()
+        code = "\n// commentary\nif (3 + 2) == 5\n    x = 2\n"
+        tokens = tokenize(code, "code_file.code")
+
+        loc = Location("code_file.code", line=4, column=5)
+        self.assertEqual(Token("identifier", "x", loc), tokens[8])
+
+    def test_multiline_comment_location(self):
+        self.location_patcher.stop()
+        code = "\nx = 2\n/* this is a \nmultiline\ncomment */ 2\n3 + 2 = 1\n"
+        tokens = tokenize(code)
+
+        self.assertEqual(Location("no file", 5, 12), tokens[3].location)
+
+    def test_location_reading_from_file(self):
+        self.location_patcher.stop()
+        with open("test_code") as file:
+            tokens = tokenize(file.read(), "test_code")
+            loc = Location("test_code", line=6, column=7)
+            expect = Token("operator", "+", loc)
+            self.assertEqual(expect, tokens[-2])

@@ -9,7 +9,7 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
         if pos < len(tokens):
             return tokens[pos]
         else:
-            return Token(category="end", text="", location=tokens[-1].location)
+            return Token(type="end", text="", location=tokens[-1].location)
 
     def consume(expected: str | list[str] | None = None) -> Token:
         nonlocal pos
@@ -63,29 +63,32 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
     def parse_factor() -> ast.Expression:
         if peek().text == "(":
             return parse_parenthesized()
-        elif peek().category == "int_literal":
+        elif peek().type == "int_literal":
             return parse_int_literal()
-        elif peek().category == "identifier":
+        elif peek().type == "identifier":
             return parse_identifier()
         else:
             raise Exception(f"{peek().location}: expected an integer literal or an identifier")
 
     def parse_parenthesized() -> ast.Expression:
         consume("(")
-        expression: ast.Expression = parse_expression()
+        expr: ast.Expression = parse_expression()
         consume(")")
-        return expression
+        return expr
 
     def parse_int_literal() -> ast.Literal:
-        if peek().category != "int_literal":
+        if peek().type != "int_literal":
             raise Exception(f"{peek().location}: expected an integer literal")
         token: Token = consume()
         return ast.Literal(int(token.text))
 
     def parse_identifier() -> ast.Identifier:
-        if peek().category != "identifier":
+        if peek().type != "identifier":
             raise Exception(f"{peek().location}: expected an identifier")
         token: Token = consume()
         return ast.Identifier(token.text)
 
-    return parse_expression() if left_ast else parse_expression_right()
+    expression: ast.Expression = parse_expression() if left_ast else parse_expression_right()
+    if pos < len(tokens):
+        raise SyntaxError(f"{peek().location}: could not parse the whole expression")
+    return expression
