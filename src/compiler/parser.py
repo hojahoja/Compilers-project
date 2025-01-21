@@ -66,12 +66,26 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
     def parse_factor() -> ast.Expression:
         if peek().text == "(":
             return parse_parenthesized()
+        elif peek().text == "if":
+            return parse_if_expression()
         elif peek().type == "int_literal":
             return parse_int_literal()
         elif peek().type == "identifier":
             return parse_identifier()
         else:
             raise SyntaxError(f"{peek().location}: expected an integer literal or an identifier")
+
+    def parse_if_expression() -> ast.Expression:
+        consume("if")
+        condition: ast.Expression = parse_expression()
+        consume("then")
+        then_clause: ast.Expression = parse_expression()
+        if peek().text == "else":
+            consume("else")
+            else_clause: ast.Expression | None = parse_expression()
+        else:
+            else_clause = None
+        return ast.IfExpression(condition, then_clause, else_clause)
 
     def parse_parenthesized() -> ast.Expression:
         consume("(")

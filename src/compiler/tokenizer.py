@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import Match, Pattern, Literal
 
-TokenType = Literal["identifier", "int_literal", "operator", "punctuation", "end"]
+TokenType = Literal["conditional", "identifier", "int_literal", "operator", "punctuation", "end"]
 
 
 @dataclass
@@ -27,6 +27,7 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
     }
 
     token_patterns: dict[TokenType, Pattern[str]] = {
+        "conditional": re.compile(r"if|then|else"),
         "identifier": re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*"),
         "int_literal": re.compile(r"\d+"),
         "operator": re.compile(r"(==|!=|<=|>=)|[-+*/=<>]"),
@@ -54,14 +55,14 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
         elif linebreaks:
             column = len(skipped_pattern) - skipped_pattern.rfind("\n") - 1
         else:
-            column += (len(skipped_pattern))
+            column += len(skipped_pattern)
 
     def extract_token(token_type: TokenType, regex: Pattern[str], index: int) -> int:
         match: Match[str] | None = regex.match(source_code, index)
         if match:
             nonlocal column
             column += match.end() - index
-            location = Location(file_name, line, column)
+            location: Location = Location(file_name, line, column)
             tokens.append(Token(token_type, match.group(), location))
             return match.end()
         return index

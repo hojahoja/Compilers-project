@@ -27,11 +27,21 @@ class TestTokenizer(TestCase):
         expect = [
             Token("identifier", "variableName", self.L),
             Token("identifier", "name_of_variable", self.L),
-            Token("identifier", "if", self.L),
+            Token("identifier", "true", self.L),
             Token("identifier", "when", self.L)
         ]
-        code = "variableName \n\n\n name_of_variable   if   when"
+        code = "variableName \n\n\n name_of_variable   true   when"
 
+        self.assertEqual(expect, tokenize(code))
+
+    def test_tokenizer_conditionals(self):
+        expect = [
+            Token("conditional", "if", self.L),
+            Token("conditional", "then", self.L),
+            Token("conditional", "else", self.L),
+        ]
+
+        code = "if then else"
         self.assertEqual(expect, tokenize(code))
 
     def test_tokenizer_operators(self):
@@ -80,7 +90,7 @@ class TestTokenizer(TestCase):
 
     def test_tokenizer_combined_use(self):
         expect = [
-            Token("identifier", "if", self.L),
+            Token("conditional", "if", self.L),
             Token("punctuation", "(", self.L),
             Token("int_literal", "3", self.L),
             Token("operator", "+", self.L),
@@ -88,6 +98,7 @@ class TestTokenizer(TestCase):
             Token("punctuation", ")", self.L),
             Token("operator", "==", self.L),
             Token("int_literal", "5", self.L),
+            Token("conditional", "then", self.L),
             Token("identifier", "x", self.L),
             Token("operator", "=", self.L),
             Token("int_literal", "2", self.L),
@@ -95,7 +106,7 @@ class TestTokenizer(TestCase):
 
         command = """
         // commentary
-        if (3 + 2) == 5\n
+        if (3 + 2) == 5\n then
             x = 2
         """
 

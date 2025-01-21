@@ -62,6 +62,38 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, result)
 
+    def test_parse_if_then_else_expression(self):
+        tokens = tokenize("if a then b + c else x * 3")
+
+        plus = ast.BinaryOp(ast.Identifier("b"), "+", ast.Identifier("c"))
+        mult = ast.BinaryOp(ast.Identifier("x"), "*", ast.Literal(3))
+        expect = ast.IfExpression(ast.Identifier("a"), plus, mult)
+
+        self.assertEqual(expect, parse(tokens))
+
+    # TODO change operators
+    def test_parse_nested_if_statements(self):
+        mult = ast.BinaryOp(ast.Identifier("a"), "*", ast.Identifier("b"))
+        second_if = ast.IfExpression(ast.Identifier("true"), ast.Identifier("c"), None)
+        expect = ast.IfExpression(mult, second_if, None)
+
+        self.assertEqual(expect, parse(tokenize("if a * b then if true then c")))
+
+    # TODO change operators
+    def test_parse_if_else_if_expressions(self):
+        plus = ast.BinaryOp(ast.Identifier("a"), "+", ast.Identifier("b"))
+        mult = ast.BinaryOp(ast.Identifier("b"), "*", ast.Identifier("c"))
+        second_if = ast.IfExpression(mult, ast.Identifier("b"), None)
+        expect = ast.IfExpression(plus, ast.Identifier("a"), second_if)
+
+        self.assertEqual(expect, parse(tokenize("if a + b then a else if b * c then b")))
+
+    def test_parse_if_statements_as_part_of_other_expressions(self):
+        if_expr = ast.IfExpression(ast.Identifier("a"), ast.Identifier("b"), None)
+        expected = ast.BinaryOp(ast.Literal(1), "+", if_expr)
+
+        self.assertEqual(expected, parse(tokenize("1 + if a then b")))
+
     def test_raise_error_if_entire_input_is_not_parsed(self):
         tokens = tokenize("4 + 3 5")
 
@@ -77,6 +109,9 @@ class TestParser(TestCase):
             ("Incorrect parenthesis", ") 1 + 2(", SyntaxError, "integer literal or an identifier"),
             ("Unmatched parenthesis", "( 3 + 2 / 4", SyntaxError, r'line=1, column=11.* expected: "\)"'),
             ("Doubled Operator", " 3 ++ 4", SyntaxError, "line=1, column=5.* integer literal or an identifier"),
+            ("If without then", "if true x + 1", SyntaxError, r'line=1, column=9.* expected: "then"'),
+            ("Else without if", "1 + 2 else 3", SyntaxError, "could not parse the whole expression"),
+            ("Single else", "else", SyntaxError, "integer literal or an identifier"),
         ]
 
         for case, code, exception, msg in test_cases:
