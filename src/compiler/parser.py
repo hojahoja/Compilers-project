@@ -3,6 +3,9 @@ from compiler.tokenizer import Token
 
 
 def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
+    if not tokens:
+        return ast.Expression()
+
     pos: int = 0
 
     def peek() -> Token:
@@ -16,7 +19,7 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
         token: Token = peek()
 
         if isinstance(expected, str) and token.text != expected:
-            raise Exception(f'{token.location}: "{expected}"')
+            raise SyntaxError(f'{token.location}: expected: "{expected}"')
         if isinstance(expected, list) and token.text not in expected:
             comma_separated: str = ", ".join([f"{e}" for e in expected])
             raise Exception(f"{token.location}: expected one of: '{comma_separated}'")
@@ -68,7 +71,7 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
         elif peek().type == "identifier":
             return parse_identifier()
         else:
-            raise Exception(f"{peek().location}: expected an integer literal or an identifier")
+            raise SyntaxError(f"{peek().location}: expected an integer literal or an identifier")
 
     def parse_parenthesized() -> ast.Expression:
         consume("(")

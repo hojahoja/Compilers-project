@@ -62,9 +62,24 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, result)
 
-    #TODO need more than this
-    def test_for_input_errors(self):
+    def test_raise_error_if_entire_input_is_not_parsed(self):
         tokens = tokenize("4 + 3 5")
 
         msg = "could not parse the whole expression"
         self.assertRaisesRegex(SyntaxError, msg, parse, tokens)
+
+    def test_empty_input_returns_an_empty_ast_expression(self):
+        self.assertEqual(ast.Expression(), parse([]))
+
+    def test_invalid_input(self):
+        test_cases = [
+            ("Unexpected operator", "+ 2", SyntaxError, "integer literal or an identifier"),
+            ("Incorrect parenthesis", ") 1 + 2(", SyntaxError, "integer literal or an identifier"),
+            ("Unmatched parenthesis", "( 3 + 2 / 4", SyntaxError, r'line=1, column=11.* expected: "\)"'),
+            ("Doubled Operator", " 3 ++ 4", SyntaxError, "line=1, column=5.* integer literal or an identifier"),
+        ]
+
+        for case, code, exception, msg in test_cases:
+            with self.subTest(input=case):
+                tokens = tokenize(code)
+                self.assertRaisesRegex(exception, msg, parse, tokens)
