@@ -65,15 +65,27 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
 
     def parse_factor() -> ast.Expression:
         if peek().text == "(":
-            return parse_parenthesized()
+            expr: ast.Expression = parse_parenthesized()
         elif peek().text == "if":
-            return parse_if_expression()
+            expr = parse_if_expression()
         elif peek().type == "int_literal":
-            return parse_int_literal()
+            expr = parse_int_literal()
         elif peek().type == "identifier":
-            return parse_identifier()
+            expr = parse_identifier()
         else:
             raise SyntaxError(f"{peek().location}: expected an integer literal or an identifier")
+
+        if peek().text == "(" and isinstance(expr, ast.Identifier):
+            args: list[ast.Expression] = parse_arguments()
+            return ast.FuncExpression(expr, args)
+
+        return expr
+
+    def parse_parenthesized() -> ast.Expression:
+        consume("(")
+        expr: ast.Expression = parse_expression()
+        consume(")")
+        return expr
 
     def parse_if_expression() -> ast.Expression:
         consume("if")
@@ -87,12 +99,6 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
             else_clause = None
         return ast.IfExpression(condition, then_clause, else_clause)
 
-    def parse_parenthesized() -> ast.Expression:
-        consume("(")
-        expr: ast.Expression = parse_expression()
-        consume(")")
-        return expr
-
     def parse_int_literal() -> ast.Literal:
         if peek().type != "int_literal":
             raise Exception(f"{peek().location}: expected an integer literal")
@@ -104,6 +110,16 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
             raise Exception(f"{peek().location}: expected an identifier")
         token: Token = consume()
         return ast.Identifier(token.text)
+
+    def parse_arguments() -> list[ast.Expression]:
+        consume("(")
+        args: list[ast.Expression] = [parse_expression()]
+        while peek().text == ",":
+            consume(",")
+            args.append(parse_expression())
+        consume(")")
+
+        return args
 
     expression: ast.Expression = parse_expression() if left_ast else parse_expression_right()
     if pos < len(tokens):

@@ -5,13 +5,16 @@ from dataclasses import dataclass
 class Expression:
     """Base class for AST nodes representing expressions."""
 
+
 @dataclass
 class Literal(Expression):
     value: int | bool
 
+
 @dataclass
 class Identifier(Expression):
     name: str
+
 
 @dataclass
 class BinaryOp(Expression):
@@ -20,8 +23,15 @@ class BinaryOp(Expression):
     op: str
     right: Expression
 
+
 @dataclass
 class IfExpression(Expression):
     if_condition: Expression
     then_clause: Expression
     else_clause: Expression | None
+
+
+@dataclass
+class FuncExpression(Expression):
+    name: Expression
+    args: list[Expression]

@@ -94,6 +94,29 @@ class TestParser(TestCase):
 
         self.assertEqual(expected, parse(tokenize("1 + if a then b")))
 
+    def test_parse_function_call(self):
+        args = [ast.Identifier("a"), ast.Literal(3)]
+        expect = ast.FuncExpression(ast.Identifier("function"), args)
+
+        self.assertEqual(expect, parse(tokenize("function(a, 3)")))
+
+    def test_parse_nested_function_call(self):
+        tokens = tokenize("function(a, function(b, c))")
+
+        func2 = ast.FuncExpression(ast.Identifier("function"), [ast.Identifier("b"), ast.Identifier("c")])
+        args = [ast.Identifier("a"), func2]
+        expect = ast.FuncExpression(ast.Identifier("function"), args)
+
+        self.assertEqual(expect, parse(tokens))
+
+    def test_expression_inside_function_call(self):
+        tokens = tokenize("function(if a then b, c)")
+
+        if_expr = ast.IfExpression(ast.Identifier("a"), ast.Identifier("b"), None)
+        expect = ast.FuncExpression(ast.Identifier("function"), [if_expr, ast.Identifier("c")])
+
+        self.assertEqual(expect, parse(tokens))
+
     def test_raise_error_if_entire_input_is_not_parsed(self):
         tokens = tokenize("4 + 3 5")
 
@@ -112,6 +135,9 @@ class TestParser(TestCase):
             ("If without then", "if true x + 1", SyntaxError, r'line=1, column=9.* expected: "then"'),
             ("Else without if", "1 + 2 else 3", SyntaxError, "could not parse the whole expression"),
             ("Single else", "else", SyntaxError, "integer literal or an identifier"),
+            ("No function identifier", "1 + (a, 3)", SyntaxError, r'line=1, column=7.* expected: "\)"'),
+            ("Literal is not a valid func name", "2 (a, 3)", SyntaxError, "could not parse the whole expression"),
+            ("Function missing punctuation", "func(a 3)", SyntaxError, r'line=1, column=8.* expected: "\)"'),
         ]
 
         for case, code, exception, msg in test_cases:
