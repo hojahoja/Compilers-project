@@ -2,7 +2,7 @@ import compiler.bast as ast
 from compiler.tokenizer import Token
 
 
-def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
+def parse(tokens: list[Token]) -> ast.Expression:
     if not tokens:
         return ast.Expression()
 
@@ -27,56 +27,53 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
         pos += 1
         return token
 
-    def parse_expression(binary_operators: list[list[str]] | None = None) -> ast.Expression:
+    def parse_expression() -> ast.Expression:
+        left: ast.Expression = parse_binary_term()
+
+        if peek().text == "=":
+            operator_token: Token = consume()
+            operator: str = operator_token.text
+
+            right: ast.Expression = parse_expression()
+            return ast.BinaryOp(left, operator, right)
+
+        return left
+
+    def parse_binary_term(binary_operators: list[list[str]] | None = None) -> ast.Expression:
         if not binary_operators:
             binary_operators = [
-                ["==", "!=", "<=", ">="],
+                ["or"],
+                ["and"],
+                ["==", "!="],
+                ["<", ">", "<=", ">="],
                 ["+", "-"],
                 ["*", "/", "%"],
             ]
 
-        left: ast.Expression = parse_next_precedence(binary_operators)
+        left: ast.Expression = parse_next_binary_precedence(binary_operators)
 
         for operators in binary_operators:
             while peek().text in operators:
                 operator_token: Token = consume()
                 operator: str = operator_token.text
 
-                right: ast.Expression = parse_next_precedence(binary_operators)
+                right: ast.Expression = parse_next_binary_precedence(binary_operators)
                 left = ast.BinaryOp(left, operator, right)
 
         return left
 
-    def parse_next_precedence(binary_operators: list[list[str]]) -> ast.Expression:
+    def parse_next_binary_precedence(binary_operators: list[list[str]]) -> ast.Expression:
         if len(binary_operators) > 1:
-            return parse_expression(binary_operators[1:])
+            return parse_binary_term(binary_operators[1:])
+        return parse_unary_term()
+
+    def parse_unary_term() -> ast.Expression:
+        while peek().text in ["-", "not"]:
+            operator_token: Token = consume()
+            operator: str = operator_token.text
+            return ast.UnaryOp(operator, parse_unary_term())
+
         return parse_factor()
-
-    # Currently works only for + - operators
-    def parse_expression_right() -> ast.Expression:
-        left: ast.Expression = parse_term()
-
-        if peek().text in ["+", "-"]:
-            operator_token: Token = consume()
-            operator: str = operator_token.text
-
-            right: ast.Expression = parse_expression_right()
-            return ast.BinaryOp(left, operator, right)
-
-        return left
-
-    # Used for parse term_right
-    def parse_term() -> ast.Expression:
-        left: ast.Expression = parse_factor()
-
-        while peek().text in ["*", "/", "%"]:
-            operator_token: Token = consume()
-            operator: str = operator_token.text
-
-            right: ast.Expression = parse_factor()
-            left = ast.BinaryOp(left, operator, right)
-
-        return left
 
     def parse_factor() -> ast.Expression:
         if peek().text == "(":
@@ -136,7 +133,7 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
 
         return args
 
-    expression: ast.Expression = parse_expression() if left_ast else parse_expression_right()
+    expression: ast.Expression = parse_expression()
     if pos < len(tokens):
         raise SyntaxError(f"{peek().location}: could not parse the whole expression")
     return expression

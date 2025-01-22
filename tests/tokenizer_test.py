@@ -45,7 +45,7 @@ class TestTokenizer(TestCase):
         self.assertEqual(expect, tokenize(code))
 
     def test_tokenizer_operators(self):
-        operators = "+ - * / % = == != < <= > >="
+        operators = "+ - * / % = == != < <= > >= and or not"
 
         expect = []
         for op in operators.split(" "):
@@ -98,6 +98,9 @@ class TestTokenizer(TestCase):
             Token("punctuation", ")", self.L),
             Token("operator", "==", self.L),
             Token("int_literal", "5", self.L),
+            Token("operator", "or", self.L),
+            Token("operator", "not", self.L),
+            Token("identifier", "false", self.L),
             Token("conditional", "then", self.L),
             Token("identifier", "x", self.L),
             Token("operator", "=", self.L),
@@ -106,7 +109,7 @@ class TestTokenizer(TestCase):
 
         command = """
         // commentary
-        if (3 + 2) == 5\n then
+        if (3 + 2) == 5 or not false\n then
             x = 2
         """
 
