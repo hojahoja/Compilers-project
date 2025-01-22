@@ -27,18 +27,32 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
         pos += 1
         return token
 
-    def parse_expression() -> ast.Expression:
-        left: ast.Expression = parse_term()
+    def parse_expression(binary_operators: list[list[str]] | None = None) -> ast.Expression:
+        if not binary_operators:
+            binary_operators = [
+                ["==", "!=", "<=", ">="],
+                ["+", "-"],
+                ["*", "/", "%"],
+            ]
 
-        while peek().text in ["+", "-"]:
-            operator_token: Token = consume()
-            operator: str = operator_token.text
+        left: ast.Expression = parse_next_precedence(binary_operators)
 
-            right: ast.Expression = parse_term()
-            left = ast.BinaryOp(left, operator, right)
+        for operators in binary_operators:
+            while peek().text in operators:
+                operator_token: Token = consume()
+                operator: str = operator_token.text
+
+                right: ast.Expression = parse_next_precedence(binary_operators)
+                left = ast.BinaryOp(left, operator, right)
 
         return left
 
+    def parse_next_precedence(binary_operators: list[list[str]]) -> ast.Expression:
+        if len(binary_operators) > 1:
+            return parse_expression(binary_operators[1:])
+        return parse_factor()
+
+    # Currently works only for + - operators
     def parse_expression_right() -> ast.Expression:
         left: ast.Expression = parse_term()
 
@@ -51,10 +65,11 @@ def parse(tokens: list[Token], left_ast: bool = True) -> ast.Expression:
 
         return left
 
+    # Used for parse term_right
     def parse_term() -> ast.Expression:
         left: ast.Expression = parse_factor()
 
-        while peek().text in ["*", "/"]:
+        while peek().text in ["*", "/", "%"]:
             operator_token: Token = consume()
             operator: str = operator_token.text
 

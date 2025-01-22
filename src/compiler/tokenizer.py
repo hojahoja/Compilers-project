@@ -30,7 +30,7 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
         "conditional": re.compile(r"if|then|else"),
         "identifier": re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*"),
         "int_literal": re.compile(r"\d+"),
-        "operator": re.compile(r"(==|!=|<=|>=)|[-+*/=<>]"),
+        "operator": re.compile(r"(==|!=|<=|>=)|[-+*/%=<>]"),
         "punctuation": re.compile(r"[(){},;]"),
     }
 

@@ -45,7 +45,7 @@ class TestTokenizer(TestCase):
         self.assertEqual(expect, tokenize(code))
 
     def test_tokenizer_operators(self):
-        operators = "+ - * / = == != < <= > >="
+        operators = "+ - * / % = == != < <= > >="
 
         expect = []
         for op in operators.split(" "):

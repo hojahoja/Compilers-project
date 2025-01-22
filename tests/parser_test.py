@@ -62,6 +62,12 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, result)
 
+    def test_remainder_expression(self):
+        mod = ast.BinaryOp(ast.Literal(3), "%", ast.Literal(2))
+        expect = ast.BinaryOp(ast.Identifier("a"), "+", mod)
+
+        self.assertEqual(expect, parse(tokenize("a + 3 % 2")))
+
     def test_parse_if_then_else_expression(self):
         tokens = tokenize("if a then b + c else x * 3")
 
