@@ -1,12 +1,21 @@
 from unittest import TestCase
+from unittest.mock import patch
 
 import compiler.bast as ast
 from compiler.parser import parse
-from compiler.tokenizer import tokenize
+from compiler.tokenizer import tokenize, Location
 
 
 # mypy: ignore-errors
 class TestParser(TestCase):
+
+    def setUp(self):
+        mock_location = Location("no file", 1, 1)
+        self.location_patcher = patch('compiler.tokenizer.Location', return_value=mock_location)
+        self.location_patcher.start()
+
+    def tearDown(self):
+        self.location_patcher.stop()
 
     def test_parse_simple_binary_summation_into_ast_node(self):
         tokens = tokenize("3 + 2")
@@ -343,6 +352,36 @@ class TestParser(TestCase):
         with self.subTest(msg="Block inside identifier should be allowed"):
             self.assertIsInstance(parse(tokenize("x = { { f(a) } { b } }")), ast.BinaryOp)
 
+    def test_ast_expression_locations(self):
+        self.location_patcher.stop()
+        command = """
+        //Starts at column 9
+        var x = 3; x = -2; //line 3
+        if x then f({2+3})
+        """
+        block = parse(tokenize(command))
+        declaration, binary, conditional = block.body
+        literal = declaration.expression
+        identifier = declaration.identifier
+        unary = binary.right
+        function = conditional.then_clause
+        block = function.args[0]
+
+        test_cases = [
+            ("block ", block.location, (4, 21)),
+            ("declaration ", declaration.location, (3, 11)),
+            ("binary ", binary.location, (3, 22)),
+            ("conditional ", conditional.location, (4, 10)),
+            ("literal ", literal.location, (3, 17)),
+            ("identifier ", identifier.location, (3, 13)),
+            ("unary ", unary.location, (3, 24)),
+            ("function ", function.location, (4, 19))
+        ]
+
+        for case, location, expect in test_cases:
+            with self.subTest(expression=case):
+                self.assertEqual(location, Location("no file", *expect))
+
     def test_raise_error_if_entire_input_is_not_parsed(self):
         tokens = tokenize("4 + 3 5")
 
@@ -353,6 +392,7 @@ class TestParser(TestCase):
         self.assertEqual(ast.Expression(), parse([]))
 
     def test_invalid_input(self):
+        self.location_patcher.stop()
         test_cases = [
             ("Unexpected operator", "+ 2", SyntaxError, "integer literal or an identifier"),
             ("Incorrect parenthesis", ") 1 + 2(", SyntaxError, "integer literal or an identifier"),
