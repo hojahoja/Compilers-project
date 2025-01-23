@@ -53,6 +53,18 @@ class TestTokenizer(TestCase):
 
         self.assertEqual(expect, tokenize(operators))
 
+    def test_variable_declaration(self):
+        expect = [
+            Token("identifier", "variable", self.L),
+            Token("declaration", "var", self.L),
+            Token("identifier", "varchar", self.L),
+            Token("operator", "=", self.L),
+            Token("int_literal", "2", self.L),
+        ]
+
+        self.assertEqual(expect, tokenize("variable var varchar = 2"))
+
+
     def test_tokenizer_punctuation(self):
         punctuation = "{ ) ( } , ;"
 
@@ -90,6 +102,10 @@ class TestTokenizer(TestCase):
 
     def test_tokenizer_combined_use(self):
         expect = [
+            Token("declaration", "var", self.L),
+            Token("identifier", "x", self.L),
+            Token("operator", "=", self.L),
+            Token("int_literal", "2", self.L),
             Token("conditional", "if", self.L),
             Token("punctuation", "(", self.L),
             Token("int_literal", "3", self.L),
@@ -104,13 +120,14 @@ class TestTokenizer(TestCase):
             Token("conditional", "then", self.L),
             Token("identifier", "x", self.L),
             Token("operator", "=", self.L),
-            Token("int_literal", "2", self.L),
+            Token("int_literal", "6", self.L),
         ]
 
         command = """
         // commentary
+        var x = 2
         if (3 + 2) == 5 or not false\n then
-            x = 2
+            x = 6
         """
 
         self.assertEqual(expect, tokenize(command))

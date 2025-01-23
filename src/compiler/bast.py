@@ -17,6 +17,12 @@ class Identifier(Expression):
 
 
 @dataclass
+class Declaration(Expression):
+    identifier: Identifier
+    expression: Expression
+
+
+@dataclass
 class BinaryOp(Expression):
     """AST node for a binary operation like `A + B`"""
     left: Expression
@@ -42,6 +48,7 @@ class IfExpression(Expression):
 class FuncExpression(Expression):
     name: Expression
     args: list[Expression]
+
 
 @dataclass
 class BlockExpression(Expression):

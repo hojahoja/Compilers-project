@@ -241,14 +241,28 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, parse(tokenize(command)))
 
-    def test_raise_error_if_entire_input_is_not_parsed(self):
-        tokens = tokenize("4 + 3 5")
+    def test_parse_simple_variable_declaration(self):
+        expect = ast.Declaration(ast.Identifier("x"), ast.Literal(2))
+        self.assertEqual(expect, parse(tokenize("var x = 2")))
 
-        msg = "could not parse the whole expression"
-        self.assertRaisesRegex(SyntaxError, msg, parse, tokens)
+    def test_parse_var_inside_block(self):
+        decl = ast.Declaration(ast.Identifier("x"), ast.Literal(2))
+        expect = ast.BlockExpression([decl])
+        self.assertEqual(expect, parse(tokenize("{var x = 2}")))
 
-    def test_empty_input_returns_an_empty_ast_expression(self):
-        self.assertEqual(ast.Expression(), parse([]))
+    def test_parse_var_inside_block_after_then(self):
+        decl = ast.Declaration(ast.Identifier("x"), ast.Literal(2))
+        block = ast.BlockExpression([decl])
+        expect = ast.IfExpression(ast.Literal(3), block, None)
+        self.assertEqual(expect, parse(tokenize("if 3 then {var x = 2}")))
+
+    def test_parse_variable_declaration_after_braces(self):
+        inner_block = ast.BlockExpression([])
+        decl = ast.Declaration(ast.Identifier("x"), ast.Literal(2))
+        expect = ast.BlockExpression([inner_block, decl])
+        for code in ("{} var x = 2", "{}; var x = 2"):
+            with self.subTest(input=code):
+                self.assertEqual(expect, parse(tokenize(code)))
 
     def test_parse_expression_with_semicolon(self):
         eq = ast.BinaryOp(ast.Identifier("a"), "=", ast.Literal(3))
@@ -297,6 +311,10 @@ class TestParser(TestCase):
             with self.subTest(msg=case, input=code):
                 self.assertEqual(expect, parse(tokenize(code)))
 
+    def test_parse_expression_after_braces_without_semicolon(self):
+        expect = ast.BlockExpression([ast.BlockExpression([]), ast.Literal(2)])
+        self.assertEqual(expect, parse(tokenize("{} 2")))
+
     def test_parse_multiple_empty_blocks(self):
         expect = ast.BlockExpression([ast.BlockExpression([]) for _ in range(3)])
         with self.subTest(msg="Without semicolons"):
@@ -325,6 +343,15 @@ class TestParser(TestCase):
         with self.subTest(msg="Block inside identifier should be allowed"):
             self.assertIsInstance(parse(tokenize("x = { { f(a) } { b } }")), ast.BinaryOp)
 
+    def test_raise_error_if_entire_input_is_not_parsed(self):
+        tokens = tokenize("4 + 3 5")
+
+        msg = "could not parse the whole expression"
+        self.assertRaisesRegex(SyntaxError, msg, parse, tokens)
+
+    def test_empty_input_returns_an_empty_ast_expression(self):
+        self.assertEqual(ast.Expression(), parse([]))
+
     def test_invalid_input(self):
         test_cases = [
             ("Unexpected operator", "+ 2", SyntaxError, "integer literal or an identifier"),
@@ -340,11 +367,15 @@ class TestParser(TestCase):
             ("Single else", "else", SyntaxError, "integer literal or an identifier"),
             ("No function identifier", "1 + (a, 3)", SyntaxError, r'line=1, column=7.* expected: "\)"'),
             ("Literal is not a valid func name", "2 (a, 3)", SyntaxError, "could not parse the whole expression"),
-            ("If is not a valid func name", "if (a, 3)", SyntaxError, r'line=1, column=6.* expected: "\)"'),
+            ("if is not a valid func name", "if (a, 3)", SyntaxError, r'line=1, column=6.* expected: "\)"'),
             ("Function missing punctuation", "func(a 3)", SyntaxError, r'line=1, column=8.* expected: "\)"'),
             ("Semicolon alone is invalid", ";", SyntaxError, "integer literal or an identifier"),
-            ("should NOT be allowed.", "{ a b }", SyntaxError, "column=5"),
-            ("should NOT be allowed.", "{ if true then { a } b c }", SyntaxError, "column=24"),
+            ("Should NOT be allowed.", "{ a b }", SyntaxError, "column=5"),
+            ("Should NOT be allowed.", "{ if true then { a } b c }", SyntaxError, "column=24"),
+            ("var is only allowed in blocks", "if 3 then var x = 3", SyntaxError, "column=13.* var is only"),
+            ("var has to be followed by an identifier", "var 3 = 3", SyntaxError, "column=5.* expected an identifier"),
+            ("var needs an initializer", "var x 3", SyntaxError, 'column=7.* expected: "="'),
+            ("Missing semicolon", "{var x = 3} var y = 4 var z = 5;", SyntaxError, "column=25.* could not parse"),
         ]
 
         for case, code, exception, error_msg in test_cases:
