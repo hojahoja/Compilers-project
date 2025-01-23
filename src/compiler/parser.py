@@ -1,3 +1,5 @@
+from typing import Type
+
 import compiler.bast as ast
 from compiler.tokenizer import Token
 
@@ -27,6 +29,45 @@ def parse(tokens: list[Token]) -> ast.Expression:
         pos += 1
         return token
 
+    def parse_top_level_block() -> ast.Expression:
+
+        expr: ast.Expression = parse_expression()
+
+        statements: list[ast.Expression] = [expr]
+
+        while peek().text in [";", "{"]:
+            if peek().text == ";":
+                consume()
+            expr = ast.BlockExpression(statements)
+            if peek().type == "end":
+                statements.append(ast.Literal(None))
+            else:
+                statements.append(parse_expression())
+        return expr
+
+
+    def parse_block() -> ast.Expression:
+        consume("{")
+        statements: list[ast.Expression] = []
+        while peek().text != "}":
+            parse_statement(statements)
+        consume("}")
+        return ast.BlockExpression(statements)
+
+    def parse_statement(statements: list[ast.Expression]) -> None:
+        statements.append(parse_expression())
+        if peek().text == ";":
+            consume()
+            if peek().text == "}" or peek().type == "end":
+                statements.append(ast.Literal(None))
+        else:
+            prohibited_types: tuple[str, ...] = ("int_literal", "bool_literal", "identifier")
+            prohibited_expressions: tuple[Type[ast.Expression], ...] = (ast.Identifier, ast.Literal)
+
+            if isinstance(statements[-1], prohibited_expressions) and peek().type in prohibited_types:
+                raise SyntaxError(f"{peek().location}: did not expect '{peek().text}'")
+
+
     def parse_expression() -> ast.Expression:
         left: ast.Expression = parse_binary_term()
 
@@ -50,19 +91,19 @@ def parse(tokens: list[Token]) -> ast.Expression:
                 ["*", "/", "%"],
             ]
 
-        left: ast.Expression = parse_next_binary_precedence(binary_operators)
+        left: ast.Expression = parse_next_level_term(binary_operators)
 
         for operators in binary_operators:
             while peek().text in operators:
                 operator_token: Token = consume()
                 operator: str = operator_token.text
 
-                right: ast.Expression = parse_next_binary_precedence(binary_operators)
+                right: ast.Expression = parse_next_level_term(binary_operators)
                 left = ast.BinaryOp(left, operator, right)
 
         return left
 
-    def parse_next_binary_precedence(binary_operators: list[list[str]]) -> ast.Expression:
+    def parse_next_level_term(binary_operators: list[list[str]]) -> ast.Expression:
         if len(binary_operators) > 1:
             return parse_binary_term(binary_operators[1:])
         return parse_unary_term()
@@ -84,6 +125,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
             expr = parse_int_literal()
         elif peek().type == "identifier":
             expr = parse_identifier()
+        elif peek().text == "{":
+            expr = parse_block()
         else:
             raise SyntaxError(f"{peek().location}: expected an integer literal or an identifier")
 
@@ -125,7 +168,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
 
     def parse_arguments() -> list[ast.Expression]:
         consume("(")
-        args: list[ast.Expression] = [parse_expression()]
+        args: list[ast.Expression] = [] if peek().text == ")" else [parse_expression()]
         while peek().text == ",":
             consume(",")
             args.append(parse_expression())
@@ -133,7 +176,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
 
         return args
 
-    expression: ast.Expression = parse_expression()
+    expression: ast.Expression = parse_top_level_block()
     if pos < len(tokens):
         raise SyntaxError(f"{peek().location}: could not parse the whole expression")
     return expression

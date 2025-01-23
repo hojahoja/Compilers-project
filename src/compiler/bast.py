@@ -8,7 +8,7 @@ class Expression:
 
 @dataclass
 class Literal(Expression):
-    value: int | bool
+    value: int | bool | None
 
 
 @dataclass
@@ -42,3 +42,7 @@ class IfExpression(Expression):
 class FuncExpression(Expression):
     name: Expression
     args: list[Expression]
+
+@dataclass
+class BlockExpression(Expression):
+    body: list[Expression]
