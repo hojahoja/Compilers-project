@@ -170,7 +170,7 @@ class TestParser(TestCase):
 
     def test_parse_nested_if_statements(self):
         mult = ast.BinaryOp(ast.Identifier("a"), "*", ast.Identifier("b"))
-        second_if = ast.IfExpression(ast.Identifier("true"), ast.Identifier("c"), None)
+        second_if = ast.IfExpression(ast.Literal(True), ast.Identifier("c"), None)
         expect = ast.IfExpression(mult, second_if, None)
 
         self.assertEqual(expect, parse(tokenize("if a * b then if true then c")))
@@ -188,6 +188,24 @@ class TestParser(TestCase):
         expected = ast.BinaryOp(ast.Literal(1), "+", if_expr)
 
         self.assertEqual(expected, parse(tokenize("1 + if a then b")))
+
+    def test_parse_simple_while_loop(self):
+        expect = ast.WhileExpression(ast.Literal(True), ast.Identifier("x"))
+        self.assertEqual(expect, parse(tokenize("while true do x ")))
+
+    def test_parse_simple_while_loop_as_part_of_other_expression(self):
+        while_expr = ast.WhileExpression(ast.Identifier("a"), ast.Identifier("b"))
+        expected = ast.BinaryOp(ast.Literal(1), "+", while_expr)
+
+        self.assertEqual(expected, parse(tokenize("1 + while a do b")))
+
+    def test_parse_nested_while_loops(self):
+        eq = ast.BinaryOp(ast.Identifier("a"), "==", ast.Identifier("b"))
+        assign = ast.BinaryOp(ast.Identifier("c"), "=", ast.Literal(3))
+        second_while = ast.WhileExpression(ast.Literal(True), assign)
+        expect = ast.WhileExpression(eq, second_while)
+
+        self.assertEqual(expect, parse(tokenize("while a == b do while true do c = 3")))
 
     def test_parse_function_call(self):
         args = [ast.Identifier("a"), ast.Literal(3)]
@@ -247,6 +265,42 @@ class TestParser(TestCase):
         if_x_le_0 = ast.IfExpression(x_le_0, print_x_mult_neg_1, print_end_x_or_5)
         if_x_ge_0 = ast.IfExpression(x_ge_0, print_x, if_x_le_0)
         expect = ast.IfExpression(x_neq_3, if_x_ge_0, None)
+
+        self.assertEqual(expect, parse(tokenize(command)))
+
+    # Stupid because making this test was ass.
+    def test_parse_stupidly_complex_case(self):
+        command = """
+        var x = 3;
+        while x > -1 do {
+            if x == 0 then
+                x = x + 1
+            else if x > 0 then
+                x = x - 1
+        }
+        win_million_dollars()
+        """
+
+        x_decl = ast.Declaration(ast.Identifier("x"), ast.Literal(3))
+        minus_one = ast.UnaryOp("-", ast.Literal(1))
+        x_greater_than_minus_one = ast.BinaryOp(ast.Identifier("x"), ">", minus_one)
+        x_equals_zero = ast.BinaryOp(ast.Identifier("x"), "==", ast.Literal(0))
+        x_greater_than_zero = ast.BinaryOp(ast.Identifier("x"), ">", ast.Literal(0))
+
+        x_plus_one = ast.BinaryOp(ast.Identifier("x"), "+", ast.Literal(1))
+        x_is_x_plus_one = ast.BinaryOp(ast.Identifier("x"), "=", x_plus_one)
+
+        x_minus_one = ast.BinaryOp(ast.Identifier("x"), "-", ast.Literal(1))
+        x_is_x_minus_one = ast.BinaryOp(ast.Identifier("x"), "=", x_minus_one)
+
+        inner_if_expression = ast.IfExpression(x_greater_than_zero, x_is_x_minus_one, None)
+        outer_if_expression = ast.IfExpression(x_equals_zero, x_is_x_plus_one, inner_if_expression, )
+        while_block = ast.BlockExpression([outer_if_expression], )
+        while_expression = ast.WhileExpression(x_greater_than_minus_one, while_block)
+
+        win_million_dollars_call = ast.FuncExpression(ast.Identifier("win_million_dollars"), [])
+
+        expect = ast.BlockExpression([x_decl, while_expression, win_million_dollars_call])
 
         self.assertEqual(expect, parse(tokenize(command)))
 
@@ -403,11 +457,13 @@ class TestParser(TestCase):
             ("Chain and without literals", "2 and and 3", SyntaxError, "column=9.* integer literal or an identifier"),
             ("3 equals operators", " 3 === 4", SyntaxError, "line=1, column=6.* integer literal or an identifier"),
             ("If without then", "if true x + 1", SyntaxError, r'line=1, column=9.* expected: "then"'),
+            ("While without do", "while true x + 1", SyntaxError, r'line=1, column=12.* expected: "do"'),
             ("Else without if", "1 + 2 else 3", SyntaxError, "could not parse the whole expression"),
             ("Single else", "else", SyntaxError, "integer literal or an identifier"),
             ("No function identifier", "1 + (a, 3)", SyntaxError, r'line=1, column=7.* expected: "\)"'),
             ("Literal is not a valid func name", "2 (a, 3)", SyntaxError, "could not parse the whole expression"),
             ("if is not a valid func name", "if (a, 3)", SyntaxError, r'line=1, column=6.* expected: "\)"'),
+            ("While is not a valid func name", "while (a, 3)", SyntaxError, r'line=1, column=9.* expected: "\)"'),
             ("Function missing punctuation", "func(a 3)", SyntaxError, r'line=1, column=8.* expected: "\)"'),
             ("Semicolon alone is invalid", ";", SyntaxError, "integer literal or an identifier"),
             ("Should NOT be allowed.", "{ a b }", SyntaxError, "column=5"),

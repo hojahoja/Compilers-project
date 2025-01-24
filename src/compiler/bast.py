@@ -52,6 +52,12 @@ class IfExpression(Expression):
     else_clause: Expression | None
     location: Location | None = field(default_factory=lambda: Location("no file", 1, 1))
 
+@dataclass
+class WhileExpression(Expression):
+    condition: Expression
+    body: Expression
+    location: Location | None = field(default_factory=lambda: Location("no file", 1, 1))
+
 
 @dataclass
 class FuncExpression(Expression):

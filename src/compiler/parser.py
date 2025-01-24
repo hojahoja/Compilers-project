@@ -126,8 +126,12 @@ def parse(tokens: list[Token]) -> ast.Expression:
             expr = parse_variable_declaration()
         elif peek().text == "if":
             expr = parse_if_expression()
+        elif peek().text == "while":
+            expr = parse_while_expression()
         elif peek().type == "int_literal":
             expr = parse_int_literal()
+        elif peek().type == "bool_literal":
+            expr = parse_bool_literal()
         elif peek().type == "identifier":
             expr = parse_identifier()
         elif peek().text == "{":
@@ -178,11 +182,26 @@ def parse(tokens: list[Token]) -> ast.Expression:
             else_clause = None
         return ast.IfExpression(condition, then_clause, else_clause, location)
 
+    def parse_while_expression() -> ast.Expression:
+        location: Location = peek().location
+        consume("while")
+        condition: ast.Expression = parse_expression()
+        consume("do")
+        body: ast.Expression = parse_expression()
+
+        return ast.WhileExpression(condition, body, location)
+
     def parse_int_literal() -> ast.Literal:
         if peek().type != "int_literal":
             raise Exception(f"{peek().location}: expected an integer literal")
         token: Token = consume()
         return ast.Literal(int(token.text), token.location)
+
+    def parse_bool_literal() -> ast.Literal:
+        if peek().type != "bool_literal":
+            raise Exception(f"{peek().location}: expected a boolean literal")
+        token: Token = consume()
+        return ast.Literal(bool(token.text), token.location)
 
     def parse_identifier() -> ast.Identifier:
         if peek().type != "identifier":

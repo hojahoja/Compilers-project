@@ -2,7 +2,10 @@ import re
 from dataclasses import dataclass
 from typing import Match, Pattern, Literal
 
-TokenType = Literal["conditional", "identifier", "int_literal", "operator", "punctuation", "end", "declaration"]
+TokenType = Literal[
+    "while_loop", "conditional", "identifier", "bool_literal", "int_literal",
+    "operator", "punctuation", "end", "declaration",
+]
 
 
 @dataclass
@@ -27,11 +30,13 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
     }
 
     token_patterns: dict[TokenType, Pattern[str]] = {
-        "conditional": re.compile(r"\bif|then|else\b"),
-        "declaration": re.compile(r"\bvar\b"),
+        "while_loop": re.compile(r"\b(while|do)\b"),
+        "conditional": re.compile(r"\b(if|then|else)\b"),
+        "declaration": re.compile(r"\b(var)\b"),
         "operator": re.compile(r"\b(and|or|not)\b|(==|!=|<=|>=)|[-+*/%=<>]"),
-        "identifier": re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*"),
+        "bool_literal": re.compile(r"\b(true|false)\b"),
         "int_literal": re.compile(r"\d+"),
+        "identifier": re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*"),
         "punctuation": re.compile(r"[(){},;]"),
     }
 

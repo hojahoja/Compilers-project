@@ -23,14 +23,18 @@ class TestTokenizer(TestCase):
         ]
         self.assertEqual(expect, tokenize("123     196123 \n0 2"))
 
+    def test_tokenizer_booleans(self):
+        expect = [Token("bool_literal", "true", self.L), Token("bool_literal", "false", self.L)]
+        self.assertEqual(expect, tokenize("true     false"))
+
     def test_tokenizer_identifiers(self):
         expect = [
             Token("identifier", "variableName", self.L),
             Token("identifier", "name_of_variable", self.L),
-            Token("identifier", "true", self.L),
+            Token("identifier", "trues", self.L),
             Token("identifier", "when", self.L)
         ]
-        code = "variableName \n\n\n name_of_variable   true   when"
+        code = "variableName \n\n\n name_of_variable   trues   when"
 
         self.assertEqual(expect, tokenize(code))
 
@@ -43,6 +47,14 @@ class TestTokenizer(TestCase):
 
         code = "if then else"
         self.assertEqual(expect, tokenize(code))
+
+    def test_tokenizer_while_loop(self):
+        expect = [
+            Token("while_loop", "while", self.L),
+            Token("identifier", "does", self.L),
+            Token("while_loop", "do", self.L),
+        ]
+        self.assertEqual(expect, tokenize("while does do"))
 
     def test_tokenizer_operators(self):
         operators = "+ - * / % = == != < <= > >= and or not"
@@ -116,7 +128,7 @@ class TestTokenizer(TestCase):
             Token("int_literal", "5", self.L),
             Token("operator", "or", self.L),
             Token("operator", "not", self.L),
-            Token("identifier", "false", self.L),
+            Token("bool_literal", "false", self.L),
             Token("conditional", "then", self.L),
             Token("identifier", "x", self.L),
             Token("operator", "=", self.L),
