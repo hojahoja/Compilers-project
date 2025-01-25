@@ -7,7 +7,7 @@ from compiler.tokenizer import tokenize
 
 
 # mypy: ignore-errors
-class TestTokenizer(TestCase):
+class TestInterpreter(TestCase):
 
     def test_interpret_literal(self):
         test_cases = [
