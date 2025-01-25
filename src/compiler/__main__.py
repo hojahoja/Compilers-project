@@ -6,7 +6,8 @@ from socketserver import ForkingTCPServer, StreamRequestHandler
 from traceback import format_exception
 from typing import Any
 
-
+# TODO remove when you begin working on this.
+# mypy: ignore-errors
 def call_compiler(source_code: str, input_file_name: str) -> bytes:
     # *** TODO ***
     # Call your compiler here and return the compiled executable.

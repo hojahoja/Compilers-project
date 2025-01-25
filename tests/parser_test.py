@@ -77,6 +77,10 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, parse(tokenize("2 == x")))
 
+    def test_parse_expression_true_and_false_literals_have_correct_values(self):
+        expect = ast.BinaryOp(ast.Literal(True), "==", ast.Literal(False))
+        self.assertEqual(expect, parse(tokenize("true == false")))
+
     def test_parse_expression_with_equals_and_not_equals_operators(self):
         eq = ast.BinaryOp(ast.Literal(2), "==", ast.Identifier("x"))
         expect = ast.BinaryOp(eq, "!=", ast.Literal(3))
@@ -158,6 +162,10 @@ class TestParser(TestCase):
         expect = ast.BinaryOp(ast.Identifier("x"), "=", plus)
 
         self.assertEqual(expect, parse(tokenize("x = variable + 3 * x")))
+
+    def test_parse_assign_unit(self):
+        expect = ast.BinaryOp(ast.Identifier("x"), "=", ast.Literal(None))
+        self.assertEqual(expect, parse(tokenize("x = unit")))
 
     def test_parse_if_then_else_expression(self):
         tokens = tokenize("if a then b + c else x * 3")

@@ -4,7 +4,7 @@ from typing import Match, Pattern, Literal
 
 TokenType = Literal[
     "while_loop", "conditional", "identifier", "bool_literal", "int_literal",
-    "operator", "punctuation", "end", "declaration",
+    "unit", "operator", "punctuation", "end", "declaration",
 ]
 
 
@@ -34,6 +34,7 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
         "conditional": re.compile(r"\b(if|then|else)\b"),
         "declaration": re.compile(r"\b(var)\b"),
         "operator": re.compile(r"\b(and|or|not)\b|(==|!=|<=|>=)|[-+*/%=<>]"),
+        "unit": re.compile(r"\b(unit)\b"),
         "bool_literal": re.compile(r"\b(true|false)\b"),
         "int_literal": re.compile(r"\d+"),
         "identifier": re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*"),

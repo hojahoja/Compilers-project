@@ -41,7 +41,7 @@ class BinaryOp(Expression):
 class UnaryOp(Expression):
     """AST node for a unary operation like `not true`"""
     op: str
-    left: Expression
+    expression: Expression
     location: Location | None = field(default_factory=lambda: Location("no file", 1, 1))
 
 
@@ -52,6 +52,7 @@ class IfExpression(Expression):
     else_clause: Expression | None
     location: Location | None = field(default_factory=lambda: Location("no file", 1, 1))
 
+
 @dataclass
 class WhileExpression(Expression):
     condition: Expression
@@ -61,7 +62,7 @@ class WhileExpression(Expression):
 
 @dataclass
 class FuncExpression(Expression):
-    name: Expression
+    name: Identifier
     args: list[Expression]
     location: Location | None = field(default_factory=lambda: Location("no file", 1, 1))
 

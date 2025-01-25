@@ -38,6 +38,14 @@ class TestTokenizer(TestCase):
 
         self.assertEqual(expect, tokenize(code))
 
+    def test_tokenizer_unit(self):
+        expect = [
+            Token("unit", "unit", self.L),
+            Token("identifier", "units", self.L),
+            Token("identifier", "absolute_unit", self.L),
+        ]
+        self.assertEqual(expect, tokenize("unit units absolute_unit"))
+
     def test_tokenizer_conditionals(self):
         expect = [
             Token("conditional", "if", self.L),
@@ -75,7 +83,6 @@ class TestTokenizer(TestCase):
         ]
 
         self.assertEqual(expect, tokenize("variable var varchar = 2"))
-
 
     def test_tokenizer_punctuation(self):
         punctuation = "{ ) ( } , ;"

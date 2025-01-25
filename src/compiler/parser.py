@@ -132,6 +132,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
             expr = parse_int_literal()
         elif peek().type == "bool_literal":
             expr = parse_bool_literal()
+        elif peek().type == "unit":
+            expr = parse_unit()
         elif peek().type == "identifier":
             expr = parse_identifier()
         elif peek().text == "{":
@@ -201,7 +203,14 @@ def parse(tokens: list[Token]) -> ast.Expression:
         if peek().type != "bool_literal":
             raise Exception(f"{peek().location}: expected a boolean literal")
         token: Token = consume()
-        return ast.Literal(bool(token.text), token.location)
+        boolean = True if token.text == "true" else False
+        return ast.Literal(boolean, token.location)
+
+    def parse_unit() -> ast.Literal:
+        if peek().type != "unit":
+            raise Exception(f"{peek().location}: expected an 'unit' value")
+        token: Token = consume()
+        return ast.Literal(None, token.location)
 
     def parse_identifier() -> ast.Identifier:
         if peek().type != "identifier":
