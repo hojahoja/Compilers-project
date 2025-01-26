@@ -58,7 +58,7 @@ def interpret(node: ast.Expression | None, table: SymTab | None = None) -> Value
             return node.value
 
         case ast.Identifier():
-            return get_value(node.name)
+            return get_value(node.name, table)
 
         case ast.UnaryOp():
             value: Value = interpret(node.expression, table)

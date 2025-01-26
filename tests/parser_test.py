@@ -405,11 +405,15 @@ class TestParser(TestCase):
             "{ if true then { a }; b }",
             "{ if true then { a } b; c }",
             "{ if true then { a } else { b } 3 }",
+            "{ while {true} do 3}",
         )
 
         for code in test_cases:
             with self.subTest(msg="Should be allowed", input=code):
                 self.assertIsInstance(parse(tokenize(code)), ast.BlockExpression)
+
+        with self.subTest(msg="Braces directly after 'while' should be allowed"):
+            self.assertIsInstance(parse(tokenize("while {true} do 3")), ast.WhileExpression)
 
         with self.subTest(msg="Block inside identifier should be allowed"):
             self.assertIsInstance(parse(tokenize("x = { { f(a) } { b } }")), ast.BinaryOp)
@@ -474,8 +478,11 @@ class TestParser(TestCase):
             ("While is not a valid func name", "while (a, 3)", SyntaxError, r'line=1, column=9.* expected: "\)"'),
             ("Function missing punctuation", "func(a 3)", SyntaxError, r'line=1, column=8.* expected: "\)"'),
             ("Semicolon alone is invalid", ";", SyntaxError, "integer literal or an identifier"),
-            ("Should NOT be allowed.", "{ a b }", SyntaxError, "column=5"),
-            ("Should NOT be allowed.", "{ if true then { a } b c }", SyntaxError, "column=24"),
+            ("Semicolon alone is invalid", "{;}", SyntaxError, "integer literal or an identifier"),
+            ("Missing semicolon after a.", "{ a b }", SyntaxError, "column=5"),
+            ("Missing semicolon after b.", "{ if true then { a } b c }", SyntaxError, "column=24"),
+            ("Missing semicolon after 2.", "2{}{}", SyntaxError, "column=2.* expected ';'"),
+            ("Missing semicolon after 2.", "{2{}}{}", SyntaxError, "column=3.* expected ';'"),
             ("var is only allowed in blocks", "if 3 then var x = 3", SyntaxError, "column=13.* var is only"),
             ("var has to be followed by an identifier", "var 3 = 3", SyntaxError, "column=5.* expected an identifier"),
             ("var needs an initializer", "var x 3", SyntaxError, 'column=7.* expected: "="'),

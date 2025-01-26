@@ -61,6 +61,10 @@ class TestInterpreter(TestCase):
     def test_interpret_assignment(self):
         test_cases = [
             ("var x = 4; x = 3; x", 3),
+            ("var k = true; k = false; k", False),
+            ("var k = 4; k = 6; k", 6),
+            ("var x = 3; var k = 4; k = x; k", 3),
+            ("var x = true; x = x; x", True),
         ]
         for case, expect in test_cases:
             with self.subTest(input=case):
@@ -90,7 +94,6 @@ class TestInterpreter(TestCase):
             ("{}", None),
             ("{}{}", None),
             ("{}{2}", 2),
-            ("2{}{}", None),
             ("{}{}2", 2),
             ("{var x= 3;}{x}", None),
             ("{var x= 3;}{}x", None),
@@ -140,12 +143,12 @@ class TestInterpreter(TestCase):
         mock_print.assert_called_once_with(4)
 
     def test_interpret_and_or_operators(self):
-        overload_or = """
+        short_circuit_or = """
         var evaluated_right_hand_side = false;
         true or { evaluated_right_hand_side = true; true };
         evaluated_right_hand_side
         """
-        overload_and = """
+        short_circuit_and = """
         var evaluated_right_hand_side = false;
         false and { evaluated_right_hand_side = true; true };
         evaluated_right_hand_side
@@ -159,8 +162,8 @@ class TestInterpreter(TestCase):
             ("false and true", False),
             ("false and false", False),
             ("true and false", False),
-            (overload_or, False),
-            (overload_and, False),
+            (short_circuit_or, False),
+            (short_circuit_and, False),
         ]
 
         for case, expect in test_cases:

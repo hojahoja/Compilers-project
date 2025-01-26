@@ -35,9 +35,11 @@ def parse(tokens: list[Token]) -> ast.Expression:
 
         statements: list[ast.Expression] = [expr]
 
-        while peek().text in [";", "{"] or pos != 0 and tokens[pos - 1].text == "}" and peek().type != "end":
+        while peek().text in [";", "{"] or tokens[pos - 1].text == "}" and peek().type != "end":
             if peek().text == ";":
                 consume()
+            elif peek().text == "{" and isinstance(expr, (ast.Literal, ast.Identifier)):
+                raise SyntaxError(f"{peek().location}: expected ';'")
 
             expr = ast.BlockExpression(statements, peek().location)
             if peek().type == "end":
@@ -62,11 +64,11 @@ def parse(tokens: list[Token]) -> ast.Expression:
             if peek().text == "}" or peek().type == "end":
                 statements.append(ast.Literal(None, peek().location))
         else:
-            prohibited_types: tuple[str, ...] = ("int_literal", "bool_literal", "identifier")
-            prohibited_expressions: tuple[Type[ast.Expression], ...] = (ast.Identifier, ast.Literal)
+            types: tuple[str, ...] = ("int_literal", "bool_literal", "identifier")
+            expressions: tuple[Type[ast.Expression], ...] = (ast.Identifier, ast.Literal)
 
-            if isinstance(statements[-1], prohibited_expressions) and peek().type in prohibited_types:
-                raise SyntaxError(f"{peek().location}: did not expect '{peek().text}'")
+            if isinstance(statements[-1], expressions) and (peek().type in types or peek().text == "{"):
+                raise SyntaxError(f"{peek().location}: expected ';'")
 
     def parse_expression() -> ast.Expression:
         left: ast.Expression = parse_binary_term()

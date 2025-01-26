@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -193,8 +194,9 @@ class TestTokenizer(TestCase):
 
     def test_location_reading_from_file(self):
         self.location_patcher.stop()
-        with open("test_code") as file:
-            tokens = tokenize(file.read(), "test_code")
+        file_path = Path(__file__).parent.resolve() / "test_code"
+        with open(file_path) as file:
+            tokens = tokenize(file.read(), file_path.name)
             loc = Location("test_code", line=6, column=7)
             expect = Token("operator", "+", loc)
             self.assertEqual(expect, tokens[-2])
