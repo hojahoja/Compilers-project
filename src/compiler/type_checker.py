@@ -32,11 +32,11 @@ def typecheck(node: ast.Expression | None, table: SymTab | None = None) -> Type:
             "or": FunType("operator", (Bool, Bool), Bool),
         })
 
-    def get_type(symbol: str, symbol_table: SymTab | None = table) -> Type:
+    def get_tabled_type(symbol: str, symbol_table: SymTab | None = table) -> Type:
         if symbol_table is None:
             return Unit
         if symbol not in symbol_table.locals:
-            return get_type(symbol, symbol_table.parent)
+            return get_tabled_type(symbol, symbol_table.parent)
 
         return symbol_table.locals[symbol]
 
@@ -47,7 +47,7 @@ def typecheck(node: ast.Expression | None, table: SymTab | None = None) -> Type:
                     return ctype
 
         case ast.Identifier():
-            typ: Type = get_type(node.name)
+            typ: Type = get_tabled_type(node.name)
             if typ is Unit:
                 raise NameError(f'{node.location}: Variable "{node.name}" is not defined"')
             return typ
@@ -58,9 +58,9 @@ def typecheck(node: ast.Expression | None, table: SymTab | None = None) -> Type:
             if node.op in ["=", "==", "!="]:
                 if t1 is not t2:
                     raise TypeError(f'{node.location}: Operator "{node.op}" {t1} is not {t2}')
-                return t1 if node.op == "=" else Bool
+                return Unit if node.op == "=" else Bool
 
-            binary_type: Type = get_type(node.op)
+            binary_type: Type = get_tabled_type(node.op)
             if isinstance(binary_type, FunType):
                 b1, b2 = binary_type.params
                 if t1 is not b1:
@@ -72,7 +72,7 @@ def typecheck(node: ast.Expression | None, table: SymTab | None = None) -> Type:
 
         case ast.UnaryOp():
             t1 = typecheck(node.expression, table)
-            unary_type = get_type(f"unary_{node.op}", table)
+            unary_type = get_tabled_type(f"unary_{node.op}", table)
             if isinstance(unary_type, FunType):
                 if t1 is not unary_type.params[0]:
                     raise TypeError(f'{node.location}: Operator "{node.op}" expected {unary_type.params[0]}, got {t1}')
@@ -106,11 +106,25 @@ def typecheck(node: ast.Expression | None, table: SymTab | None = None) -> Type:
 
         case ast.Declaration():
             t1 = typecheck(node.expression, table)
-            table.locals[node.identifier.name] = t1
+            if node.type_expression:
+
+                name: str = node.type_expression.name
+                known_types: dict[str, Type] = {"Bool": Bool, "Int": Int, "Unit": Unit}
+                if name not in known_types:
+                    raise TypeError(f'{node.type_expression.location} Unknown type "{name}"')
+                t2 = known_types[name]
+
+                if t1 != t2:
+                    raise TypeError(f"{node.location}: expected {t2}, got {t1}")
+
+            name = node.identifier.name
+            if name in table.locals:
+                raise TypeError(f'{node.location}: Variable "{name}" already declared in scope:')
+            table.locals[name] = t1
 
         case ast.FuncExpression():
-            name: str = node.name.name
-            func_type: Type = get_type(name)
+            name = node.name.name
+            func_type: Type = get_tabled_type(name)
             if func_type is Unit:
                 raise NameError(f'{node.name.location}: Variable not found: "{name}"')
 

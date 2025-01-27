@@ -1,14 +1,14 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Match, Pattern, Literal
 
 TokenType = Literal[
     "while_loop", "conditional", "identifier", "bool_literal", "int_literal",
-    "unit", "operator", "punctuation", "end", "declaration",
+    "operator", "punctuation", "end", "declaration",
 ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Location:
     file: str
     line: int
@@ -19,7 +19,7 @@ class Location:
 class Token:
     type: TokenType
     text: str
-    location: Location
+    location: Location = field(default_factory=lambda: Location("no file", 1, 1))
 
 
 def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
@@ -34,11 +34,10 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
         "conditional": re.compile(r"\b(if|then|else)\b"),
         "declaration": re.compile(r"\b(var)\b"),
         "operator": re.compile(r"\b(and|or|not)\b|(==|!=|<=|>=)|[-+*/%=<>]"),
-        "unit": re.compile(r"\b(unit)\b"),
         "bool_literal": re.compile(r"\b(true|false)\b"),
         "int_literal": re.compile(r"\d+"),
         "identifier": re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*"),
-        "punctuation": re.compile(r"[(){},;]"),
+        "punctuation": re.compile(r"[(){},;:]"),
     }
 
     line: int = 1
@@ -68,9 +67,9 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
         match: Match[str] | None = regex.match(source_code, index)
         if match:
             nonlocal column
-            column += match.end() - index
-            location: Location = Location(file_name, line, column)
+            location: Location = Location(file_name, line, column + 1)
             tokens.append(Token(token_type, match.group(), location))
+            column += match.end() - index
             return match.end()
         return index
 

@@ -174,12 +174,12 @@ class TestInterpreter(TestCase):
         test_cases = [
             ("2; x = 3", NameError, "column=4.* 'x' is not defined"),
             ("2; 3 = 3", SyntaxError, "column=6.* must be a variable name"),
-            ("print_int(unit)", TypeError, "column=9.* expected int.* got, NoneType"),
-            ("print_int(false)", TypeError, "column=9.* expected int.* got, bool"),
-            ("print_bool(2)", TypeError, "column=10.* expected bool.* got, int"),
-            ("print_int(2, 2)", TypeError, "column=9.* print_int.* 1 argument but 2"),
-            ("print_bool(2, 2, 3)", TypeError, "column=10.* print_bool.* 1 argument but 3"),
-            ("read_int(2)", TypeError, "column=8.* read_int.* 0 arguments but 1"),
+            ("print_int(unit)", TypeError, "column=1.* expected int.* got, NoneType"),
+            ("print_int(false)", TypeError, "column=1.* expected int.* got, bool"),
+            ("print_bool(2)", TypeError, "column=1.* expected bool.* got, int"),
+            ("print_int(2, 2)", TypeError, "column=1.* print_int.* 1 argument but 2"),
+            ("print_bool(2, 2, 3)", TypeError, "column=1.* print_bool.* 1 argument but 3"),
+            ("read_int(2)", TypeError, "column=1.* read_int.* 0 arguments but 1"),
         ]
         for case, error, msg in test_cases:
             with self.subTest(input=case):

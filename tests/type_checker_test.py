@@ -116,10 +116,24 @@ class TestTypeChecker(TestCase):
             with self.subTest(msg=case, input=code):
                 self.assertEqual(expect, check(code))
 
-    def test_typecheck_untyped_variables(self):
+    def test_typecheck_variable_declarations(self):
         test_cases = [
-            ("Boolean", "var k = true; k", Bool),
-            ("Integer", "var x = 3; x", Int),
+            ("Integer declaration", "var x = 3", Unit),
+            ("Boolean declaration", "var x = false", Unit),
+            ("Integer declaration", "var x: Int = 2", Unit),
+            ("Boolean declaration", "var x: Bool = true", Unit),
+        ]
+
+        for case, code, expect in test_cases:
+            with self.subTest(msg=case, input=code):
+                self.assertEqual(expect, check(code))
+
+    def test_typecheck_declared_variables(self):
+        test_cases = [
+            ("Integer declaration", "var x = 3", Unit),
+            ("Boolean declaration", "var x = false", Unit),
+            ("Boolean variable", "var k = true; k", Bool),
+            ("Integer variable", "var x = 3; x", Int),
             ("Integer operation", "var x = 3; var y = 3;  x+y", Int),
         ]
 
@@ -129,10 +143,10 @@ class TestTypeChecker(TestCase):
 
     def test_typecheck_variable_assignment(self):
         test_cases = [
-            ("Boolean", "var k = true; k = false", Bool),
-            ("Integer", "var k = 4; k = 6", Int),
-            ("Assign variable to another variable", "var x = 3; var k = 4; k = x", Int),
-            ("Assign variable to same variable", "var x = true; x = x", Bool),
+            ("Boolean", "var k = true; k = false", Unit),
+            ("Integer", "var k = 4; k = 6", Unit),
+            ("Assign variable to another variable", "var x = 3; var k = 4; k = x", Unit),
+            ("Assign variable to same variable", "var x = true; x = x", Unit),
         ]
 
         for case, code, expect in test_cases:
@@ -176,26 +190,34 @@ class TestTypeChecker(TestCase):
 
         code = "triple_param(3, 21, 0)"
         with self.subTest(msg="Incorrect parameter types", input=code):
-            message = "mn=12.* parameter 3.*Bool.*Int"
+            message = "mn=1.* parameter 3.*Bool.*Int"
             self.assertRaisesRegex(TypeError, message, check, code)
 
     def test_typecheck_errors(self):
+        shenanigans2 = "var x = 3; var k: x = 2"
+
         test_cases = [
             ("Left side binary operator", "true + 1", TypeError, r'mn=6.* "\+".*left.*Int.*Bool'),
             ("Right side binary operator", "1 < false", TypeError, r'mn=3.* "<".*right.*Int.*Bool'),
-            ("Or operator accepts only bool", "1 or 2", TypeError, r'mn=4.* "or".*left.*Bool.*Int'),
+            ("Or operator accepts only bool", "1 or 2", TypeError, r'mn=3.* "or".*left.*Bool.*Int'),
             ("Unary - boolean", "- true", TypeError, r'mn=1.* "-".*Int.*Bool'),
-            ("Unary not integer", "not 20", TypeError, r'mn=3.* "not".*Bool.*Int'),
-            ("If condition not bool", "if 3 then 4", TypeError, r'mn=2.* expected.*Bool.*Int'),
-            ("Then and else clause different type", "if true then 4 else false", TypeError, r'mn=2.*Int.*Bool'),
+            ("Unary not integer", "not 20", TypeError, r'mn=1.* "not".*Bool.*Int'),
+            ("If condition not bool", "if 3 then 4", TypeError, r'mn=1.* expected.*Bool.*Int'),
+            ("Then and else clause different type", "if true then 4 else false", TypeError, r'mn=1.*Int.*Bool'),
             ("Variable doesn't exist: Assignment", "x = 2", NameError, r'mn=1.* "x" is not defined'),
             ("Variable doesn't exist: Operator", "4 >= y", NameError, r'mn=6.* "y" is not defined'),
+            ("Variable already exists in scope", "var x = 3; var x = 2", TypeError, r'mn=12.* "x" already declared'),
             ('Mismatching type for "="', "var x = true; x = 2", TypeError, r'mn=17.* "=".*Bool.*not.*Int'),
-            ('Mismatching type for "=="', "2 == false", TypeError, r'mn=4.* "==".*Int.*not.*Bool'),
-            ('Mismatching type for "!="', "true != 0", TypeError, r'mn=7.* "!=".*Bool.*not.*Int'),
-            ("While-loop condition not bool", "while 1 do 3", TypeError, r'mn=5.* while-loop.*Bool.*Int'),
-            ("print_int param not int", "print_int(false)", TypeError, r'mn=9.* parameter 1.*Int.*Bool'),
-            ("print_bool param not bool", "print_bool(22)", TypeError, r'mn=10.* parameter 1.*Bool.*Int'),
+            ('Mismatching type for "=="', "2 == false", TypeError, r'mn=3.* "==".*Int.*not.*Bool'),
+            ('Mismatching type for "!="', "true != 0", TypeError, r'mn=6.* "!=".*Bool.*not.*Int'),
+            ("While-loop condition not bool", "while 1 do 3", TypeError, r'mn=1.* while-loop.*Bool.*Int'),
+            ("print_int param not int", "print_int(false)", TypeError, r'mn=1.* parameter 1.*Int.*Bool'),
+            ("print_bool param not bool", "print_bool(22)", TypeError, r'mn=1.* parameter 1.*Bool.*Int'),
+            ("Trying to declare with wrong type", "var x: Int = false", TypeError, r'mn=1.*Int.*Bool'),
+            ("Trying to assign variable as Unit type", "var x: Unit = 2", TypeError, r'mn=1.*Unit.*Int'),
+            ("Trying to change builtin type", "var Bool = 2; var x: Bool = 2", TypeError, r'mn=15.*Bool.*Int'),
+            ("Trying to use declared variable as type", shenanigans2, TypeError, r'mn=19.* Unknown type "x"'),
+            ("Declaration with nonexistent type", "var x: Mint = 2", TypeError, r'mn=8.* Unknown type "Mint"'),
         ]
 
         for case, code, error, message in test_cases:

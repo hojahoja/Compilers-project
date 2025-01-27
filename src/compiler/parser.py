@@ -41,28 +41,28 @@ def parse(tokens: list[Token]) -> ast.Expression:
             elif peek().text == "{" and isinstance(expr, (ast.Literal, ast.Identifier)):
                 raise SyntaxError(f"{peek().location}: expected ';'")
 
-            expr = ast.BlockExpression(statements, peek().location)
+            expr = ast.BlockExpression(statements, location=peek().location)
             if peek().type == "end":
-                statements.append(ast.Literal(None, peek().location))
+                statements.append(ast.Literal(None, location=peek().location))
             else:
                 statements.append(parse_expression())
         return expr
 
-    def parse_block() -> ast.Expression:
+    def parse_block() -> ast.BlockExpression:
         location: Location = peek().location
         consume("{")
         statements: list[ast.Expression] = []
         while peek().text != "}":
             parse_statement(statements)
         consume("}")
-        return ast.BlockExpression(statements, location)
+        return ast.BlockExpression(statements, location=location)
 
     def parse_statement(statements: list[ast.Expression]) -> None:
         statements.append(parse_expression())
         if peek().text == ";":
             consume()
             if peek().text == "}" or peek().type == "end":
-                statements.append(ast.Literal(None, peek().location))
+                statements.append(ast.Literal(None, location=peek().location))
         else:
             types: tuple[str, ...] = ("int_literal", "bool_literal", "identifier")
             expressions: tuple[Type[ast.Expression], ...] = (ast.Identifier, ast.Literal)
@@ -79,7 +79,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
             operator: str = operator_token.text
 
             right: ast.Expression = parse_expression()
-            return ast.BinaryOp(left, operator, right, location)
+            return ast.BinaryOp(left, operator, right, location=location)
 
         return left
 
@@ -103,7 +103,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
                 operator: str = operator_token.text
 
                 right: ast.Expression = parse_next_level_term(binary_operators)
-                left = ast.BinaryOp(left, operator, right, location)
+                left = ast.BinaryOp(left, operator, right, location=location)
 
         return left
 
@@ -117,7 +117,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
             location: Location = peek().location
             operator_token: Token = consume()
             operator: str = operator_token.text
-            return ast.UnaryOp(operator, parse_unary_term(), location)
+            return ast.UnaryOp(operator, parse_unary_term(), location=location)
 
         return parse_factor()
 
@@ -134,8 +134,6 @@ def parse(tokens: list[Token]) -> ast.Expression:
             expr = parse_int_literal()
         elif peek().type == "bool_literal":
             expr = parse_bool_literal()
-        elif peek().type == "unit":
-            expr = parse_unit()
         elif peek().type == "identifier":
             expr = parse_identifier()
         elif peek().text == "{":
@@ -146,7 +144,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
         if peek().text == "(" and isinstance(expr, ast.Identifier):
             location: Location = tokens[pos - 1].location
             args: list[ast.Expression] = parse_arguments()
-            return ast.FuncExpression(expr, args, location)
+            return ast.FuncExpression(expr, args, location=location)
 
         return expr
 
@@ -156,14 +154,18 @@ def parse(tokens: list[Token]) -> ast.Expression:
         consume(")")
         return expr
 
-    def parse_variable_declaration() -> ast.Expression:
+    def parse_variable_declaration() -> ast.Declaration:
         if var_is_allowed():
             location: Location = peek().location
+            typ: ast.TypeExpression | None = None
             consume("var")
             name: ast.Identifier = parse_identifier()
+            if peek().text == ":":
+                consume()
+                typ = parse_type_expression()
             consume("=")
             body: ast.Expression = parse_expression()
-            return ast.Declaration(name, body, location)
+            return ast.Declaration(name, body, typ, location=location)
         raise SyntaxError(f"{peek().location}: var is only allowed inside blocks or top-level expressions")
 
     def var_is_allowed() -> bool:
@@ -173,7 +175,13 @@ def parse(tokens: list[Token]) -> ast.Expression:
             return True
         return False
 
-    def parse_if_expression() -> ast.Expression:
+    def parse_type_expression() -> ast.TypeExpression:
+        if peek().type != "identifier":
+            raise SyntaxError(f"{peek().location}: expected a type hint")
+        token: Token = consume()
+        return ast.TypeExpression(token.text, location=token.location)
+
+    def parse_if_expression() -> ast.IfExpression:
         location: Location = peek().location
         consume("if")
         condition: ast.Expression = parse_expression()
@@ -184,41 +192,35 @@ def parse(tokens: list[Token]) -> ast.Expression:
             else_clause: ast.Expression | None = parse_expression()
         else:
             else_clause = None
-        return ast.IfExpression(condition, then_clause, else_clause, location)
+        return ast.IfExpression(condition, then_clause, else_clause, location=location)
 
-    def parse_while_expression() -> ast.Expression:
+    def parse_while_expression() -> ast.WhileExpression:
         location: Location = peek().location
         consume("while")
         condition: ast.Expression = parse_expression()
         consume("do")
         body: ast.Expression = parse_expression()
 
-        return ast.WhileExpression(condition, body, location)
+        return ast.WhileExpression(condition, body, location=location)
 
     def parse_int_literal() -> ast.Literal:
         if peek().type != "int_literal":
             raise Exception(f"{peek().location}: expected an integer literal")
         token: Token = consume()
-        return ast.Literal(int(token.text), token.location)
+        return ast.Literal(int(token.text), location=token.location)
 
     def parse_bool_literal() -> ast.Literal:
         if peek().type != "bool_literal":
             raise Exception(f"{peek().location}: expected a boolean literal")
         token: Token = consume()
         boolean = True if token.text == "true" else False
-        return ast.Literal(boolean, token.location)
-
-    def parse_unit() -> ast.Literal:
-        if peek().type != "unit":
-            raise Exception(f"{peek().location}: expected an 'unit' value")
-        token: Token = consume()
-        return ast.Literal(None, token.location)
+        return ast.Literal(boolean, location=token.location)
 
     def parse_identifier() -> ast.Identifier:
         if peek().type != "identifier":
             raise SyntaxError(f"{peek().location}: expected an identifier")
         token: Token = consume()
-        return ast.Identifier(token.text, token.location)
+        return ast.Identifier(token.text, location=token.location)
 
     def parse_arguments() -> list[ast.Expression]:
         consume("(")

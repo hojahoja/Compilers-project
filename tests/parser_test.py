@@ -163,10 +163,6 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, parse(tokenize("x = variable + 3 * x")))
 
-    def test_parse_assign_unit(self):
-        expect = ast.BinaryOp(ast.Identifier("x"), "=", ast.Literal(None))
-        self.assertEqual(expect, parse(tokenize("x = unit")))
-
     def test_parse_if_then_else_expression(self):
         tokens = tokenize("if a then b + c else x * 3")
 
@@ -335,6 +331,16 @@ class TestParser(TestCase):
             with self.subTest(input=code):
                 self.assertEqual(expect, parse(tokenize(code)))
 
+    def test_parse_typed_variable_declaration(self):
+        plus = ast.BinaryOp(ast.Identifier("x"), "+", ast.Literal(10))
+        expect = ast.Declaration(ast.Identifier("x"), plus, ast.TypeExpression("Int"))
+        self.assertEqual(expect, parse(tokenize("var x: Int = x + 10")))
+
+    def test_parse_typed_variable_declaration_with_custom_type(self):
+        plus = ast.BinaryOp(ast.Identifier("x"), "+", ast.Literal(10))
+        expect = ast.Declaration(ast.Identifier("x"), plus, ast.TypeExpression("Mint"))
+        self.assertEqual(expect, parse(tokenize("var x: Mint = x + 10")))
+
     def test_parse_expression_with_semicolon(self):
         eq = ast.BinaryOp(ast.Identifier("a"), "=", ast.Literal(3))
         expect = ast.BlockExpression([eq, ast.Literal(None)])
@@ -435,9 +441,9 @@ class TestParser(TestCase):
 
         test_cases = [
             ("block ", block.location, (4, 21)),
-            ("declaration ", declaration.location, (3, 11)),
+            ("declaration ", declaration.location, (3, 9)),
             ("binary ", binary.location, (3, 22)),
-            ("conditional ", conditional.location, (4, 10)),
+            ("conditional ", conditional.location, (4, 9)),
             ("literal ", literal.location, (3, 17)),
             ("identifier ", identifier.location, (3, 13)),
             ("unary ", unary.location, (3, 24)),
@@ -466,7 +472,7 @@ class TestParser(TestCase):
             ("Doubled Operator", " 3 ++ 4", SyntaxError, "line=1, column=5.* integer literal or an identifier"),
             ("Missing Expression for <", "<2>", SyntaxError, "line=1, column=1.* integer literal or an identifier"),
             ("Unary operator inside parenthesis", "2-(-)3", SyntaxError, "column=5.* integer literal or an identifier"),
-            ("Chain and without literals", "2 and and 3", SyntaxError, "column=9.* integer literal or an identifier"),
+            ("Chain and without literals", "2 and and 3", SyntaxError, "column=7.* integer literal or an identifier"),
             ("3 equals operators", " 3 === 4", SyntaxError, "line=1, column=6.* integer literal or an identifier"),
             ("If without then", "if true x + 1", SyntaxError, r'line=1, column=9.* expected: "then"'),
             ("While without do", "while true x + 1", SyntaxError, r'line=1, column=12.* expected: "do"'),
@@ -483,10 +489,12 @@ class TestParser(TestCase):
             ("Missing semicolon after b.", "{ if true then { a } b c }", SyntaxError, "column=24"),
             ("Missing semicolon after 2.", "2{}{}", SyntaxError, "column=2.* expected ';'"),
             ("Missing semicolon after 2.", "{2{}}{}", SyntaxError, "column=3.* expected ';'"),
-            ("var is only allowed in blocks", "if 3 then var x = 3", SyntaxError, "column=13.* var is only"),
+            ("Missing semicolon", "{var x = 3} var y = 4 var z = 5;", SyntaxError, "column=23.* could not parse"),
+            ("var is only allowed in blocks", "if 3 then var x = 3", SyntaxError, "column=11.* var is only"),
             ("var has to be followed by an identifier", "var 3 = 3", SyntaxError, "column=5.* expected an identifier"),
             ("var needs an initializer", "var x 3", SyntaxError, 'column=7.* expected: "="'),
-            ("Missing semicolon", "{var x = 3} var y = 4 var z = 5;", SyntaxError, "column=25.* could not parse"),
+            ("Using typed var without colon", "var Int x = 1", SyntaxError, 'column=9.* expected: "="'),
+            ("Misplaced colon in typed var", "var: x = 1", SyntaxError, 'column=4.* expected an identifier'),
         ]
 
         for case, code, exception, error_msg in test_cases:

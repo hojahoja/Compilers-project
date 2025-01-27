@@ -33,19 +33,14 @@ class TestTokenizer(TestCase):
             Token("identifier", "variableName", self.L),
             Token("identifier", "name_of_variable", self.L),
             Token("identifier", "trues", self.L),
-            Token("identifier", "when", self.L)
+            Token("identifier", "when", self.L),
+            Token("identifier", "Int", self.L),
+            Token("identifier", "Bool", self.L),
+            Token("identifier", "Unit", self.L),
         ]
-        code = "variableName \n\n\n name_of_variable   trues   when"
+        code = "variableName \n\n\n name_of_variable trues  when Int Bool Unit"
 
         self.assertEqual(expect, tokenize(code))
-
-    def test_tokenizer_unit(self):
-        expect = [
-            Token("unit", "unit", self.L),
-            Token("identifier", "units", self.L),
-            Token("identifier", "absolute_unit", self.L),
-        ]
-        self.assertEqual(expect, tokenize("unit units absolute_unit"))
 
     def test_tokenizer_conditionals(self):
         expect = [
@@ -86,7 +81,7 @@ class TestTokenizer(TestCase):
         self.assertEqual(expect, tokenize("variable var varchar = 2"))
 
     def test_tokenizer_punctuation(self):
-        punctuation = "{ ) ( } , ;"
+        punctuation = "{ ) ( } , ; :"
 
         expect = []
         for pun in punctuation.split(" "):
@@ -184,6 +179,14 @@ class TestTokenizer(TestCase):
 
         loc = Location("code_file.code", line=4, column=5)
         self.assertEqual(Token("identifier", "x", loc), tokens[8])
+
+    def test_line_and_column_location_file_name_creation_for_token_with_longer_variable_name(self):
+        self.location_patcher.stop()
+        code = "\n// commentary\nif (3 + 2) == 5\n    tax = 2\n"
+        tokens = tokenize(code, "code_file.code")
+
+        loc = Location("code_file.code", line=4, column=9)
+        self.assertEqual(Token("operator", "=", loc), tokens[9])
 
     def test_multiline_comment_location(self):
         self.location_patcher.stop()

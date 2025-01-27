@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Type:
     name: str
 
@@ -11,7 +11,7 @@ Bool = Type("Boolean")
 Unit = Type("Unit")
 
 
-@dataclass
+@dataclass(frozen=True)
 class FunType(Type):
     params: tuple[Type, ...]
     return_type: Type
