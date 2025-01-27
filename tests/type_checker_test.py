@@ -193,6 +193,38 @@ class TestTypeChecker(TestCase):
             message = "mn=1.* parameter 3.*Bool.*Int"
             self.assertRaisesRegex(TypeError, message, check, code)
 
+    def test_ast_type_unassigned(self):
+        self.assertEqual(Unit, parse(tokenize("var x: Bool = true; x")).type)
+
+    def test_ast_type_assignment(self):
+        test_cases = [
+            ("Boolean", "true", Bool),
+            ("Integer", "2", Int),
+            ("Binary calc", "2+2", Int),
+            ("Binary comp", "2!=2", Bool),
+            ("Declaration", "var x = 3", Unit),
+            ("Typed declaration", "var x: Bool = false", Unit),
+            ("Assignment", "var x: Bool = false; x = true", Unit),
+            ("declared variable", "var x: Bool = true; x", Bool),
+            ("Changed variable", "var x = 1; x = 2; x", Int),
+            ("Unary -", "-2", Int),
+            ("Unary not", "not false", Bool),
+            ("While", "while true do 2", Int),
+            ("Block", "{true}", Bool),
+            ("While-Block", "while {true} do {10}", Int),
+            ("if then", "if 3>3 then 5", Int),
+            ("if then else", "if 3>3 then 5 else 0", Int),
+            ("print_int", "print_int(2)", Unit),
+            ("read_int", "read_int()", Int),
+        ]
+
+        for case, code, expect in test_cases:
+            with self.subTest(msg=case, input=code):
+                expression = parse(tokenize(code))
+                typecheck(expression)
+
+                self.assertEqual(expect, expression.type)
+
     def test_typecheck_errors(self):
         shenanigans2 = "var x = 3; var k: x = 2"
 
