@@ -1,18 +1,12 @@
-from dataclasses import dataclass, field
-from typing import Self, Callable
+from typing import Callable
 
 import compiler.bast as ast
+from compiler.symtab import SymTab
 
 type Value = int | bool | Callable[..., Value] | None
 
 
-@dataclass
-class SymTab:
-    locals: dict[str, Value] = field(default_factory=dict)
-    parent: Self | None = None
-
-
-def interpret(node: ast.Expression | None, table: SymTab | None = None) -> Value:
+def interpret(node: ast.Expression | None, table: SymTab[Value] | None = None) -> Value:
     if table is None:
         table = SymTab({
             "print_int": lambda val: print(val) if type(val) == int else type(val),
@@ -35,34 +29,21 @@ def interpret(node: ast.Expression | None, table: SymTab | None = None) -> Value
             "or": lambda val_a, val_b: val_a or val_b,
         })
 
-    def get_value(symbol: str, symbol_table: SymTab | None = table) -> Value:
-        if symbol_table is None:
-            return None
-        if symbol not in symbol_table.locals:
-            return get_value(symbol, symbol_table.parent)
-
-        return symbol_table.locals[symbol]
-
-    def set_value(ident: ast.Identifier, val: Value, symbol_table: SymTab | None = table) -> None:
+    def set_value(ident: ast.Identifier, val: Value) -> None:
         symbol = ident.name
-        current_table = symbol_table
-        while current_table:
-            if symbol in current_table.locals:
-                current_table.locals[symbol] = val
-                return
-            current_table = current_table.parent
-        raise NameError(f"{ident.location}: Variable '{symbol}' is not defined")
+        if not table.assign_value(symbol, val):
+            raise NameError(f"{ident.location}: Variable '{symbol}' is not defined")
 
     match node:
         case ast.Literal():
             return node.value
 
         case ast.Identifier():
-            return get_value(node.name, table)
+            return table.get_value(node.name)
 
         case ast.UnaryOp():
             value: Value = interpret(node.expression, table)
-            operator: Value = get_value(f"unary_{node.op}")
+            operator: Value = table.get_value(f"unary_{node.op}")
             if callable(operator):
                 return operator(value)
             else:
@@ -74,7 +55,7 @@ def interpret(node: ast.Expression | None, table: SymTab | None = None) -> Value
 
             if node.op == "=":
                 if isinstance(node.left, ast.Identifier):
-                    set_value(node.left, get_b(), table)
+                    set_value(node.left, get_b())
                 else:
                     raise SyntaxError(f"{node.location} left side of assignment must be a variable name")
             elif node.op == "or":
@@ -82,7 +63,7 @@ def interpret(node: ast.Expression | None, table: SymTab | None = None) -> Value
             elif node.op == "and":
                 return get_a() and get_b()
             else:
-                operator = get_value(node.op)
+                operator = table.get_value(node.op)
                 if callable(operator):
                     return operator(get_a(), get_b())
                 raise Exception(f"{node.location} expected an operator")
@@ -102,7 +83,7 @@ def interpret(node: ast.Expression | None, table: SymTab | None = None) -> Value
 
         case ast.BlockExpression():
             value = None
-            block_table: SymTab = SymTab(parent=table)
+            block_table: SymTab[Value] = SymTab(parent=table)
             for expression in node.body:
                 value = interpret(expression, block_table)
 
@@ -117,7 +98,7 @@ def interpret(node: ast.Expression | None, table: SymTab | None = None) -> Value
             name: str = node.name.name
             args: list[Value] = [interpret(arg, table) for arg in node.args]
 
-            operator = get_value(name)
+            operator = table.get_value(name)
             if name in ["print_int", "print_bool"] and callable(operator):
                 if len(args) == 1:
                     incorrect_type = operator(*args)
