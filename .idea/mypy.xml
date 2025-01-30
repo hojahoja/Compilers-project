@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="MypyConfigService">
-    <option name="mypyArguments" value="--strict --config-file C:\Users\jarim_000\Work\Programming\Compilers\mypy.ini" />
-    <option name="mypyConfigFilePath" value="C:\Users\jarim_000\Work\Programming\Compilers\mypy.ini" />
-  </component>
-</project>

@@ -35,7 +35,7 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("1 + 2 * 3"))
 
-    def test_if(self):
+    def test_if_then(self):
         expect = """
         LoadBoolConst(True, x1)
         CondJump(x1, Label(L1), Label(L2))
@@ -45,3 +45,26 @@ class TestIrGenerator(TestCase):
         """
 
         self.assertEqual(trim(expect), string_ir("if true then false"))
+
+    def test_if_then_else(self):
+        expect = """
+        LoadBoolConst(True, x1)
+        CondJump(x1, Label(L1), Label(L2))
+        Label(L1)
+        LoadIntConst(1, x3)
+        LoadIntConst(2, x4)
+        Call(+, [x3, x4], x5)
+        LoadIntConst(3, x6)
+        Call(*, [x5, x6], x7)
+        Copy(x7, x2)
+        Jump(Label(L3))
+        Label(L2)
+        LoadIntConst(5, x8)
+        LoadIntConst(4, x9)
+        Call(/, [x8, x9], x10)
+        Copy(x10, x2)
+        Label(L3)
+        Call(print_int, [x2], x11)
+        """
+#        if true then (1+2) * 3 else 5 / 4
+        self.assertEqual(trim(expect), string_ir("if true then false else false"))

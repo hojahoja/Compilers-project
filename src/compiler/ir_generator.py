@@ -39,6 +39,8 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
     var_unit = IRVar("unit")
     var_types[var_unit] = Unit
 
+    root_loc: Location = root_expr.location
+
     def ir_var_generator(prefix: str, cls: typing.Type[IRVar]) -> Generator[IRVar, None, None]:
         i: int = 1
         while True:
@@ -49,7 +51,7 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
     def label_generator(prefix: str, cls: typing.Type[ir.Label]) -> Generator[ir.Label, None, None]:
         i: int = 1
         while True:
-            variable: ir.Label = cls(Location("no file", 0, 0), name=f"{prefix}{i}")
+            variable: ir.Label = cls(root_loc, name=f"{prefix}{i}")
             i += 1
             yield variable
 
@@ -104,25 +106,45 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                 return var_result
 
             case ast.IfExpression():
+                # Creating then label and first LoadBoolConst is shared by both branches
+                l_then: ir.Label = new_label()
+                var_cond: IRVar = visit(st, expr.if_condition)
+
                 if expr.else_clause is None:
-                    l_then: ir.Label = new_label()
+                    # Then
                     l_end: ir.Label = new_label()
-
-                    var_cond: IRVar = visit(st, expr.if_condition)
-
                     ins.append(ir.CondJump(loc, var_cond, l_then, l_end))
                     ins.append(l_then)
-
                     visit(st, expr.then_clause)
 
+                    # If End
                     ins.append(l_end)
-
                     return var_unit
                 else:
-                    # TODO
-                    return var_unit
+                    l_else = new_label()
+                    l_end = new_label()
 
-            # TODO other cases
+                    # If
+                    ins.append(ir.CondJump(loc, var_cond, l_then, l_else))
+                    copy_var: IRVar = new_var(Bool) if expr.type == Bool else new_var(Int)
+
+                    #Then
+                    ins.append(l_then)
+                    then_var: IRVar = visit(st, expr.then_clause)
+                    ins.append(ir.Copy(loc, then_var, copy_var))
+                    ins.append(ir.Jump(loc, l_end))
+
+                    # Else
+                    ins.append(l_else)
+                    else_var: IRVar = visit(st, expr.else_clause)
+                    ins.append(ir.Copy(loc, else_var, copy_var))
+
+                    # If End
+                    ins.append(l_end)
+                    return copy_var
+
+
+        # TODO other cases
             # case ast.:
 
             case _:
@@ -132,11 +154,9 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
     var_final_result = visit(root_symtable, root_expr)
     if var_types[var_final_result] == Int:
-        no_loc = Location("no file", 0, 0)
-        ins.append(ir.Call(no_loc, root_symtable.require("print_int"), [var_final_result], new_var(Int)))
+        ins.append(ir.Call(root_loc, root_symtable.require("print_int"), [var_final_result], new_var(Int)))
     if var_types[var_final_result] == Bool:
-        no_loc = Location("no file", 0, 0)
-        ins.append(ir.Call(no_loc, root_symtable.require("print_bool"), [var_final_result], new_var(Bool)))
+        ins.append(ir.Call(root_loc, root_symtable.require("print_bool"), [var_final_result], new_var(Bool)))
 
     return ins
 
