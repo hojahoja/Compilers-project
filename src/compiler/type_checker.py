@@ -44,8 +44,8 @@ def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> 
             return typ
 
         case ast.BinaryOp():
-            t1: Type = get_type(node.left, table)
-            t2: Type = get_type(node.right, table)
+            t1: Type = typecheck(node.left, table)
+            t2: Type = typecheck(node.right, table)
             if node.op in ["=", "==", "!="]:
                 if t1 is not t2:
                     raise TypeError(f'{node.location}: Operator "{node.op}" {t1} is not {t2}')
@@ -62,7 +62,7 @@ def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> 
                 return binary_type.return_type
 
         case ast.UnaryOp():
-            t1 = get_type(node.expression, table)
+            t1 = typecheck(node.expression, table)
             unary_type: Type | None = table.get_value(f"unary_{node.op}")
             if isinstance(unary_type, FunType):
                 if t1 is not unary_type.params[0]:
@@ -70,17 +70,17 @@ def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> 
                 return unary_type.return_type
 
         case ast.WhileExpression():
-            t1 = get_type(node.condition, table)
+            t1 = typecheck(node.condition, table)
             if t1 == Bool:
-                return get_type(node.body, table)
+                return typecheck(node.body, table)
             raise TypeError(f'{node.location}: while-loop condition should be a Boolean, got {t1}')
 
         case ast.IfExpression():
-            t1 = get_type(node.if_condition, table)
+            t1 = typecheck(node.if_condition, table)
             if t1 is not Bool:
                 raise TypeError(f'{node.location}:  expected {Bool}, got {t1}')
-            t2 = get_type(node.then_clause, table)
-            t3: Type = get_type(node.else_clause, table)
+            t2 = typecheck(node.then_clause, table)
+            t3: Type = typecheck(node.else_clause, table)
             if t3 is Unit:
                 return t2
             elif t2 != t3:
@@ -91,12 +91,12 @@ def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> 
             typ = Unit
             block_table: SymTab[Type] = SymTab(parent=table)
             for expression in node.body:
-                typ = get_type(expression, block_table)
+                typ = typecheck(expression, block_table)
 
             return typ
 
         case ast.Declaration():
-            t1 = get_type(node.expression, table)
+            t1 = typecheck(node.expression, table)
             if node.type_expression:
 
                 name: str = node.type_expression.name
@@ -120,7 +120,7 @@ def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> 
                 raise NameError(f'{node.name.location}: Variable not found: "{name}"')
 
             elif isinstance(func_type, FunType):
-                arg_types: list[Type] = [get_type(arg, table) for arg in node.args]
+                arg_types: list[Type] = [typecheck(arg, table) for arg in node.args]
                 for i, types in enumerate(zip(func_type.params, arg_types)):
                     expect, got = types
                     if expect != got:

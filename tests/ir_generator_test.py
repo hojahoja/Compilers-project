@@ -35,6 +35,28 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("1 + 2 * 3"))
 
+    def test_variable_unary_minus(self):
+        expect = """
+        LoadIntConst(1, x1)
+        Call(unary_-, [x1], x2)
+        Call(print_int, [x2], x3)
+        """
+
+        self.assertEqual(trim(expect), string_ir("-1"))
+
+    def test_while(self):
+        expect = """
+        Label(L1)
+        LoadBoolConst(True, x1)
+        CondJump(x1, Label(L2), Label(L3))
+        Label(L2)
+        LoadBoolConst(False, x2)
+        Jump(Label(L1))
+        Label(L3)
+        """
+
+        self.assertEqual(trim(expect), string_ir("while true do false"))
+
     def test_if_then(self):
         expect = """
         LoadBoolConst(True, x1)
@@ -66,5 +88,25 @@ class TestIrGenerator(TestCase):
         Label(L3)
         Call(print_int, [x2], x11)
         """
-#        if true then (1+2) * 3 else 5 / 4
-        self.assertEqual(trim(expect), string_ir("if true then false else false"))
+
+        self.assertEqual(trim(expect), string_ir("if true then (1+2) * 3 else 5 / 4"))
+
+    def test_block_expression(self):
+        expect = """
+        LoadIntConst(2, x1)
+        LoadIntConst(2, x2)
+        Call(%, [x1, x2], x3)
+        """
+
+        self.assertEqual(trim(expect), string_ir("{{2%2};}"))
+
+    def test_variable_declaration(self):
+        expect = """
+        LoadBoolConst(True, x1)
+        Copy(x1, x2)
+        LoadBoolConst(False, x3)
+        Call(!=, [x2, x3], x4)
+        Call(print_bool, [x4], x5)
+        """
+
+        self.assertEqual(trim(expect), string_ir("var x: Bool = true; x != false"))

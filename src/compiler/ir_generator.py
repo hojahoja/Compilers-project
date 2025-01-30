@@ -80,7 +80,7 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                         var: IRVar = new_var(Bool)
                         ins.append(ir.LoadBoolConst(loc, expr.value, var))
                     case int():
-                        var = new_var(Bool)
+                        var = new_var(Int)
                         ins.append(ir.LoadIntConst(loc, expr.value, var))
                     case None:
                         var = var_unit
@@ -99,11 +99,37 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                 var_op: IRVar = st.require(expr.op)
                 var_left: IRVar = visit(st, expr.left)
                 var_right: IRVar = visit(st, expr.right)
-                var_result = new_var(expr.type)
+                var_result: IRVar = new_var(expr.type)
 
                 ins.append(ir.Call(loc, var_op, [var_left, var_right], var_result))
 
                 return var_result
+
+            case ast.UnaryOp():
+                unary_op: IRVar = st.require(f"unary_{expr.op}")
+                unary_var: IRVar = visit(st, expr.expression)
+                unary_result: IRVar = new_var(expr.type)
+
+                ins.append(ir.Call(loc, unary_op, [unary_var], unary_result))
+
+                return unary_result
+
+            case ast.WhileExpression():
+                l_while_start: ir.Label = new_label()
+                l_while_body: ir.Label = new_label()
+                l_while_end: ir.Label = new_label()
+
+                # While condition
+                ins.append(l_while_start)
+                while_cond: IRVar = visit(st, expr.condition)
+                ins.append(ir.CondJump(loc, while_cond, l_while_body, l_while_end))
+
+                # While Body
+                ins.append(l_while_body)
+                visit(st, expr.body)
+                ins.append(ir.Jump(loc, l_while_start))
+
+                ins.append(l_while_end)
 
             case ast.IfExpression():
                 # Creating then label and first LoadBoolConst is shared by both branches
@@ -119,7 +145,6 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
                     # If End
                     ins.append(l_end)
-                    return var_unit
                 else:
                     l_else = new_label()
                     l_end = new_label()
@@ -128,7 +153,7 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                     ins.append(ir.CondJump(loc, var_cond, l_then, l_else))
                     copy_var: IRVar = new_var(Bool) if expr.type == Bool else new_var(Int)
 
-                    #Then
+                    # Then
                     ins.append(l_then)
                     then_var: IRVar = visit(st, expr.then_clause)
                     ins.append(ir.Copy(loc, then_var, copy_var))
@@ -143,12 +168,28 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                     ins.append(l_end)
                     return copy_var
 
+            case ast.BlockExpression():
+                block_var: IRVar = var_unit
+                block_table: SymTab[IRVar] = SymTab(parent=st)
+                for expression in expr.body:
+                    block_var = visit(block_table, expression)
 
-        # TODO other cases
+                return block_var
+
+            case ast.Declaration():
+                dec_value: IRVar = visit(st, expr.expression)
+                dec_variable: IRVar = new_var(expr.expression.type)
+
+                ins.append(ir.Copy(loc, dec_value, dec_variable))
+                st.add_local(expr.identifier.name, dec_variable)
+
+            # TODO other cases
             # case ast.:
 
             case _:
                 raise Exception(f"{loc}: unexpected error")
+
+        return var_unit
 
     root_symtable: SymTab[IRVar] = SymTab({v.name: v for v in root_types.keys()})
 
