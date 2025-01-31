@@ -64,7 +64,7 @@ class WhileExpression(Expression):
 
 @dataclass
 class FuncExpression(Expression):
-    name: Identifier
+    identifier: Identifier
     args: list[Expression]
 
 

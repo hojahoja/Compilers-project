@@ -114,10 +114,10 @@ def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> 
             table.add_local(name, t1)
 
         case ast.FuncExpression():
-            name = node.name.name
+            name = node.identifier.name
             func_type: Type | None = table.get_value(name)
             if not func_type:
-                raise NameError(f'{node.name.location}: Variable not found: "{name}"')
+                raise NameError(f'{node.identifier.location}: Variable not found: "{name}"')
 
             elif isinstance(func_type, FunType):
                 arg_types: list[Type] = [typecheck(arg, table) for arg in node.args]

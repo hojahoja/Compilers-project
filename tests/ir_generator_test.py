@@ -23,7 +23,7 @@ def trim(ir_code: str) -> str:
 
 class TestIrGenerator(TestCase):
 
-    def test_simple_calculation(self):
+    def test_ir_simple_calculation(self):
         expect = """
         LoadIntConst(1, x1)
         LoadIntConst(2, x2)
@@ -35,7 +35,53 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("1 + 2 * 3"))
 
-    def test_variable_unary_minus(self):
+    def test_ir_assignment(self):
+        expect = """
+        LoadIntConst(3, x1)
+        Copy(x1, x2)
+        LoadIntConst(2, x3)
+        Copy(x3, x2)
+        Call(print_int, [x2], x4)
+        """
+
+        self.assertEqual(trim(expect), string_ir("var x: Int = 3; x = 2"))
+
+    def test_ir_and(self):
+        expect = """
+        LoadBoolConst(True, x1)
+        CondJump(x1, Label(L1), Label(L2))
+        Label(L1)
+        LoadBoolConst(True, x2)
+        Copy(x2, x3)
+        Jump(Label(L3))
+        Label(L2)
+        LoadBoolConst(False, x3)
+        Jump(Label(L3))
+        Label(L3)
+        Call(print_bool, [x3], x4)
+        """
+
+        self.assertEqual(trim(expect), string_ir("true and true"))
+
+
+    def test_ir_or(self):
+        expect = """
+        LoadBoolConst(False, x1)
+        CondJump(x1, Label(L2), Label(L1))
+        Label(L2)
+        LoadBoolConst(True, x2)
+        Copy(x2, x3)
+        Jump(Label(L3))
+        Label(L1)
+        LoadBoolConst(True, x3)
+        Jump(Label(L3))
+        Label(L3)
+        Call(print_bool, [x3], x4)
+        """
+
+        self.assertEqual(trim(expect), string_ir("false or true"))
+
+    def test_ir_variable_unary_minus(self):
         expect = """
         LoadIntConst(1, x1)
         Call(unary_-, [x1], x2)
@@ -44,7 +90,7 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("-1"))
 
-    def test_while(self):
+    def test_ir_while(self):
         expect = """
         Label(L1)
         LoadBoolConst(True, x1)
@@ -57,7 +103,7 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("while true do false"))
 
-    def test_if_then(self):
+    def test_ir_if_then(self):
         expect = """
         LoadBoolConst(True, x1)
         CondJump(x1, Label(L1), Label(L2))
@@ -68,7 +114,7 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("if true then false"))
 
-    def test_if_then_else(self):
+    def test_ir_if_then_else(self):
         expect = """
         LoadBoolConst(True, x1)
         CondJump(x1, Label(L1), Label(L2))
@@ -91,7 +137,7 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("if true then (1+2) * 3 else 5 / 4"))
 
-    def test_block_expression(self):
+    def test_ir_block_expression(self):
         expect = """
         LoadIntConst(2, x1)
         LoadIntConst(2, x2)
@@ -100,7 +146,7 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("{{2%2};}"))
 
-    def test_variable_declaration(self):
+    def test_ir_variable_declaration(self):
         expect = """
         LoadBoolConst(True, x1)
         Copy(x1, x2)
@@ -110,3 +156,27 @@ class TestIrGenerator(TestCase):
         """
 
         self.assertEqual(trim(expect), string_ir("var x: Bool = true; x != false"))
+
+    def test_ir_builtin_function_calls(self):
+        print_int = """
+        LoadIntConst(5, x1)
+        Call(print_int, [x1], x2)
+        """
+        print_bool = """
+        LoadBoolConst(True, x1)
+        Call(print_bool, [x1], x2)
+        """
+        read_int = """
+        Call(read_int, [], x1)
+        Call(print_int, [x1], x2)
+        """
+
+        test_cases = [
+            ("print_int", "print_int(5)", print_int),
+            ("print_bool", "print_bool(true)", print_bool),
+            ("read_int", "read_int()", read_int),
+        ]
+
+        for case, code, expect in test_cases:
+            with self.subTest(msg=case, code=code):
+                self.assertEqual(trim(expect), string_ir(code))

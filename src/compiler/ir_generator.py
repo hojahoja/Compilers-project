@@ -28,8 +28,6 @@ ROOT_TYPES: dict[IRVar, Type] = {
     IRVar("!="): Bool,
     IRVar("unary_-"): Int,
     IRVar("unary_not"): Bool,
-    # IRVar("and"): Unit,
-    # IRVar("or"): Unit,
 }
 
 
@@ -96,14 +94,44 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                 raise NameError(f'{loc}: Variable "{expr.name}" is not defined"')
 
             case ast.BinaryOp():
-                var_op: IRVar = st.require(expr.op)
                 var_left: IRVar = visit(st, expr.left)
-                var_right: IRVar = visit(st, expr.right)
-                var_result: IRVar = new_var(expr.type)
 
-                ins.append(ir.Call(loc, var_op, [var_left, var_right], var_result))
+                if expr.op == "=":
+                    var_right: IRVar = visit(st, expr.right)
+                    ins.append(ir.Copy(loc, var_right, var_left))
+                    return var_left
 
-                return var_result
+                elif expr.op in ["and", "or"]:
+                    # Create labels and check left side value
+                    l_right: ir.Label = new_label()
+                    l_skip: ir.Label = new_label()
+                    l_end: ir.Label = new_label()
+                    if expr.op == "or":
+                        l_skip, l_right = l_right, l_skip
+                    ins.append(ir.CondJump(loc, var_left, l_right, l_skip))
+
+                    # Check right side value and copy result
+                    ins.append(l_right)
+                    var_right = visit(st, expr.right)
+                    var_result: IRVar = new_var(Bool)
+                    ins.append(ir.Copy(loc, var_right, var_result))
+                    ins.append(ir.Jump(loc, l_end))
+
+                    # Directly return result depending on right side value
+                    ins.append(l_skip)
+                    short_circuit_result: bool = False if expr.op == "and" else True
+                    ins.append(ir.LoadBoolConst(loc, short_circuit_result, var_result))
+                    ins.append(ir.Jump(loc, l_end))
+
+                    ins.append(l_end)
+                    return var_result
+
+                else:
+                    var_op: IRVar = st.require(expr.op)
+                    var_right = visit(st, expr.right)
+                    var_result = new_var(expr.type)
+                    ins.append(ir.Call(loc, var_op, [var_left, var_right], var_result))
+                    return var_result
 
             case ast.UnaryOp():
                 unary_op: IRVar = st.require(f"unary_{expr.op}")
@@ -138,16 +166,16 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
                 if expr.else_clause is None:
                     # Then
-                    l_end: ir.Label = new_label()
-                    ins.append(ir.CondJump(loc, var_cond, l_then, l_end))
+                    l_if_end: ir.Label = new_label()
+                    ins.append(ir.CondJump(loc, var_cond, l_then, l_if_end))
                     ins.append(l_then)
                     visit(st, expr.then_clause)
 
                     # If End
-                    ins.append(l_end)
+                    ins.append(l_if_end)
                 else:
                     l_else = new_label()
-                    l_end = new_label()
+                    l_if_end = new_label()
 
                     # If
                     ins.append(ir.CondJump(loc, var_cond, l_then, l_else))
@@ -157,7 +185,7 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                     ins.append(l_then)
                     then_var: IRVar = visit(st, expr.then_clause)
                     ins.append(ir.Copy(loc, then_var, copy_var))
-                    ins.append(ir.Jump(loc, l_end))
+                    ins.append(ir.Jump(loc, l_if_end))
 
                     # Else
                     ins.append(l_else)
@@ -165,7 +193,7 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                     ins.append(ir.Copy(loc, else_var, copy_var))
 
                     # If End
-                    ins.append(l_end)
+                    ins.append(l_if_end)
                     return copy_var
 
             case ast.BlockExpression():
@@ -183,8 +211,17 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                 ins.append(ir.Copy(loc, dec_value, dec_variable))
                 st.add_local(expr.identifier.name, dec_variable)
 
-            # TODO other cases
-            # case ast.:
+            case ast.FuncExpression():
+                func_vars: list[IRVar] = [visit(st, a) for a in expr.args]
+                func: IRVar = st.require(expr.identifier.name)
+
+                if expr.identifier.name == "read_int":
+                    result_var: IRVar = new_var(Int)
+                    ins.append(ir.Call(loc, func, func_vars, result_var))
+                    return result_var
+                else:
+                    ins.append(ir.Call(loc, func, func_vars, new_var(expr.identifier.type)))
+                    return var_unit
 
             case _:
                 raise Exception(f"{loc}: unexpected error")

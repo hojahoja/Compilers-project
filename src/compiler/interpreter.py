@@ -95,7 +95,7 @@ def interpret(node: ast.Expression | None, table: SymTab[Value] | None = None) -
             return None
 
         case ast.FuncExpression():
-            name: str = node.name.name
+            name: str = node.identifier.name
             args: list[Value] = [interpret(arg, table) for arg in node.args]
 
             operator = table.get_value(name)
