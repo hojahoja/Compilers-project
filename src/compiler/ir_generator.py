@@ -46,15 +46,9 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
             i += 1
             yield variable
 
-    def label_generator(prefix: str, cls: typing.Type[ir.Label]) -> Generator[ir.Label, None, None]:
-        i: int = 1
-        while True:
-            variable: ir.Label = cls(root_loc, name=f"{prefix}{i}")
-            i += 1
-            yield variable
-
     ir_vars: Generator[IRVar, None, None] = ir_var_generator("x", IRVar)
-    ir_labels: Generator[ir.Label, None, None] = label_generator("L", ir.Label)
+
+    ir_labels_adjust: dict[str, int] = {}
 
     def new_var(t: Type) -> IRVar:
         variable: IRVar = next(ir_vars)
@@ -62,8 +56,14 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
         return variable
 
-    def new_label() -> ir.Label:
-        return next(ir_labels)
+    def new_label(name: str) -> ir.Label:
+        if name in ir_labels_adjust:
+            ir_labels_adjust[name] += 1
+            name = f"{name}{ir_labels_adjust[name]}"
+        else:
+            ir_labels_adjust[name] = 1
+
+        return ir.Label(root_loc, name)
 
     ins: list[ir.Instruction] = []
 
@@ -103,12 +103,15 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
                 elif expr.op in ["and", "or"]:
                     # Create labels and check left side value
-                    l_right: ir.Label = new_label()
-                    l_skip: ir.Label = new_label()
-                    l_end: ir.Label = new_label()
-                    if expr.op == "or":
-                        l_skip, l_right = l_right, l_skip
-                    ins.append(ir.CondJump(loc, var_left, l_right, l_skip))
+                    prefix: str = 'and' if expr.op == 'and' else 'or'
+
+                    l_right: ir.Label = new_label(f"{prefix}_right")
+                    l_skip: ir.Label = new_label(f"{prefix}_skip")
+                    l_end: ir.Label = new_label(f"{prefix}_end")
+                    if prefix == "and":
+                        ins.append(ir.CondJump(loc, var_left, l_right, l_skip))
+                    else:
+                        ins.append(ir.CondJump(loc, var_left, l_skip, l_right))
 
                     # Check right side value and copy result
                     ins.append(l_right)
@@ -143,9 +146,9 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                 return unary_result
 
             case ast.WhileExpression():
-                l_while_start: ir.Label = new_label()
-                l_while_body: ir.Label = new_label()
-                l_while_end: ir.Label = new_label()
+                l_while_start: ir.Label = new_label("while_start")
+                l_while_body: ir.Label = new_label("while_body")
+                l_while_end: ir.Label = new_label("while_end")
 
                 # While condition
                 ins.append(l_while_start)
@@ -161,12 +164,12 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
             case ast.IfExpression():
                 # Creating then label and first LoadBoolConst is shared by both branches
-                l_then: ir.Label = new_label()
+                l_then: ir.Label = new_label("then")
                 var_cond: IRVar = visit(st, expr.if_condition)
 
                 if expr.else_clause is None:
                     # Then
-                    l_if_end: ir.Label = new_label()
+                    l_if_end: ir.Label = new_label("if_end")
                     ins.append(ir.CondJump(loc, var_cond, l_then, l_if_end))
                     ins.append(l_then)
                     visit(st, expr.then_clause)
@@ -174,8 +177,8 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
                     # If End
                     ins.append(l_if_end)
                 else:
-                    l_else = new_label()
-                    l_if_end = new_label()
+                    l_else = new_label("else")
+                    l_if_end = new_label("if_end")
 
                     # If
                     ins.append(ir.CondJump(loc, var_cond, l_then, l_else))
