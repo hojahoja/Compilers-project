@@ -15,17 +15,20 @@ def assemble(code: str) -> str:
     typecheck(expression)
     return generate_assembly(generate_ir(ROOT_TYPES, expression))
 
-def trim(code: str) -> str:
+
+def trim(code: str, remove_bp: bool = True) -> str:
+    if remove_bp:
+        code = re.sub(r".*(?=\.Lmain_start)", '', code, flags=re.DOTALL)
     lines = code.splitlines()
-    code = "\n".join((line.strip() for line in lines if line.strip()))
+
+    empty_or_comment_line: str = r"(^\s*$)|(^\s*#)"
+    code = "\n".join((line.strip() for line in lines if not re.match(empty_or_comment_line, line)))
     return code.rstrip("\n")
 
 
 class TestAssemblyGenerator(TestCase):
 
-
-    #TODO finish test
-    def test_basic_case(self):
+    def test_assemble_basic_case(self):
         expect = """
         .extern print_int
         .extern print_bool
@@ -44,46 +47,87 @@ class TestAssemblyGenerator(TestCase):
             
             .Lmain_start:
             
-                # LoadBoolConst(True, x)
                 movq $1, -8(%rbp)
             
-                # Copy(x, x2)
                 movq -8(%rbp), %rax
                 movq %rax, -16(%rbp)
             
-                # CondJump(x2, Label(then), Label(else))
                 cmpq $0, -16(%rbp)
                 jne .Lmain_then
                 jmp .Lmain_else
             
             .Lmain_then:
             
-                # LoadIntConst(1, x4)
                 movq $1, -24(%rbp)
             
-                # Copy(x4, x3)
                 movq -24(%rbp), %rax
                 movq %rax, -32(%rbp)
             
-                # Jump(Label(if_end))
                 jmp .Lmain_if_end
             
             .Lmain_else:
             
-                # LoadIntConst(2, x5)
                 movq $2, -40(%rbp)
             
-                # Copy(x5, x3)
                 movq -40(%rbp), %rax
                 movq %rax, -32(%rbp)
             
             .Lmain_if_end:
             
-                # Return(None)
                 movq $0, %rax
                 movq %rbp, %rsp
                 popq %rbp
                 ret
         """
 
-        self.assertEqual(trim(expect), assemble("{ var x = true; if x then 1 else 2; }"))
+        code = "{ var x = true; if x then 1 else 2; }"
+        self.assertEqual(trim(expect, False), trim(assemble(code), False))
+
+    def test_assemble_arithmetic(self):
+        expect = """
+        subq $72, %rsp
+        .Lmain_start:
+    
+        # LoadIntConst(1, x)
+        movq $1, -8(%rbp)
+    
+        # LoadIntConst(2, x2)
+        movq $2, -16(%rbp)
+    
+        # Call(+, [x, x2], x3)
+        movq -8(%rbp), %rax
+        addq -16(%rbp), %rax
+        movq %rax, -24(%rbp)
+    
+        # LoadIntConst(3, x4)
+        movq $3, -32(%rbp)
+    
+        # LoadIntConst(4, x5)
+        movq $4, -40(%rbp)
+    
+        # Call(*, [x4, x5], x6)
+        movq -32(%rbp), %rax
+        imulq -40(%rbp), %rax
+        movq %rax, -48(%rbp)
+    
+        # LoadIntConst(2, x7)
+        movq $2, -56(%rbp)
+    
+        # Call(/, [x6, x7], x8)
+        movq -48(%rbp), %rax
+        cqto
+        idivq -56(%rbp)
+        movq %rax, -64(%rbp)
+    
+        # Call(-, [x3, x8], x9)
+        movq -24(%rbp), %rax
+        subq -64(%rbp), %rax
+        movq %rax, -72(%rbp)
+    
+        # Return(None)
+        movq $0, %rax
+        movq %rbp, %rsp
+        popq %rbp
+        ret """
+
+        self.assertEqual(trim(expect), trim(assemble("1 + 2 - 3 * 4 / 2;")))

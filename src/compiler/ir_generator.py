@@ -233,7 +233,8 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
     root_symtable: SymTab[IRVar] = SymTab({v.name: v for v in root_types.keys()})
 
-    var_final_result = visit(root_symtable, root_expr)
+    ins.append(new_label("start"))
+    var_final_result: IRVar = visit(root_symtable, root_expr)
     if var_types[var_final_result] == Int:
         ins.append(ir.Call(root_loc, root_symtable.require("print_int"), [var_final_result], new_var(Int)))
     if var_types[var_final_result] == Bool:

@@ -1,6 +1,7 @@
 import dataclasses
 
 import compiler.ir as ir
+from compiler.intrinsics import all_intrinsics as intrinsics, Intrinsic, IntrinsicArgs
 
 
 class Locals:
@@ -20,7 +21,24 @@ class Locals:
 
 def get_all_ir_variables(instructions: list[ir.Instruction]) -> list[ir.IRVar]:
     result_list: list[ir.IRVar] = []
-    result_set: set[ir.IRVar] = set()
+    result_set: set[ir.IRVar] = {
+        ir.IRVar("print_int"),
+        ir.IRVar("print_bool"),
+        ir.IRVar("read_int"),
+        ir.IRVar("+"),
+        ir.IRVar("-"),
+        ir.IRVar("*"),
+        ir.IRVar("/"),
+        ir.IRVar("%"),
+        ir.IRVar("<"),
+        ir.IRVar("<="),
+        ir.IRVar(">"),
+        ir.IRVar(">="),
+        ir.IRVar("=="),
+        ir.IRVar("!="),
+        ir.IRVar("unary_-"),
+        ir.IRVar("unary_not"),
+    }
 
     def add(val: ir.IRVar) -> None:
         if val not in result_set:
@@ -69,7 +87,7 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
         emit("    # " + str(ins))
         match ins:
             case ir.Label():
-                emit(f"    .L{ins.name}:")
+                emit(f"    .Lmain_{ins.name}:")
 
             case ir.LoadIntConst():
                 if -2 ** 31 <= ins.value < 2 ** 31:
@@ -82,7 +100,7 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
                 emit(f"    movq ${int(ins.value)}, {local_vars.get_ref(ins.dest)}")
 
             case ir.Jump():
-                emit(f"    jmp .L{ins.label.name}")
+                emit(f"    jmp .Lmain_{ins.label.name}")
 
             case ir.Copy():
                 emit(f"    movq {local_vars.get_ref(ins.source)}, %rax")
@@ -90,8 +108,17 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
 
             case ir.CondJump():
                 emit(f"    cmpq $0, {local_vars.get_ref(ins.cond)}")
-                emit(f"    jne .L{ins.then_label.name}")
-                emit(f"    jmp .L{ins.else_label.name}")
+                emit(f"    jne .Lmain_{ins.then_label.name}")
+                emit(f"    jmp .Lmain_{ins.else_label.name}")
+
+            # TODO
+            case ir.Call():
+                if ins.fun.name in intrinsics:
+                    args: list[str] = [local_vars.get_ref(var) for var in ins.args]
+                    args.append(local_vars.get_ref(ins.dest))
+                    call: Intrinsic = intrinsics[ins.fun.name]
+                    intrinsic_args: IntrinsicArgs = IntrinsicArgs(args, "%rax", emit)
+                    call(intrinsic_args)
 
     # set 0 as return value and restore stack
     emit("")
@@ -99,6 +126,5 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
     emit("    movq %rbp, %rsp")
     emit("    popq %rbp")
     emit("    ret")
-
 
     return "\n".join(lines)
