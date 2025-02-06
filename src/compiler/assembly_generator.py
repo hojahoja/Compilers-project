@@ -66,6 +66,8 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
 
     local_vars: Locals = Locals(variables=get_all_ir_variables(instructions))
 
+    call_registers: tuple[str, ...] = ("%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9")
+
     emit("    .extern print_int")
     emit("    .extern print_bool")
     emit("    .extern read_int")
@@ -111,14 +113,22 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
                 emit(f"    jne .Lmain_{ins.then_label.name}")
                 emit(f"    jmp .Lmain_{ins.else_label.name}")
 
-            # TODO
             case ir.Call():
+                args: list[str] = [local_vars.get_ref(var) for var in ins.args]
                 if ins.fun.name in intrinsics:
-                    args: list[str] = [local_vars.get_ref(var) for var in ins.args]
-                    args.append(local_vars.get_ref(ins.dest))
                     call: Intrinsic = intrinsics[ins.fun.name]
                     intrinsic_args: IntrinsicArgs = IntrinsicArgs(args, "%rax", emit)
                     call(intrinsic_args)
+                    emit(f"movq %rax, {local_vars.get_ref(ins.dest)}")
+                else:
+                    emit(f"subq ${8}, %rsp") # This changes when function defs are supported
+                    for var, reg in zip(args, call_registers):
+                        emit(f"movq {var}, {reg}")
+
+                    emit(f"callq {ins.fun.name}")
+                    emit(f"movq %rax, {local_vars.get_ref(ins.dest)}")
+                    emit(f"addq ${8}, %rsp")
+
 
     # set 0 as return value and restore stack
     emit("")

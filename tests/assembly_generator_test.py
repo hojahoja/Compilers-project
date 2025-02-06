@@ -18,7 +18,7 @@ def assemble(code: str) -> str:
 
 def trim(code: str, remove_bp: bool = True) -> str:
     if remove_bp:
-        code = re.sub(r".*(?=\.Lmain_start)", '', code, flags=re.DOTALL)
+        code = re.sub(r".*(?<=\.Lmain_start:)", '', code, flags=re.DOTALL)
     lines = code.splitlines()
 
     empty_or_comment_line: str = r"(^\s*$)|(^\s*#)"
@@ -85,9 +85,6 @@ class TestAssemblyGenerator(TestCase):
 
     def test_assemble_arithmetic(self):
         expect = """
-        subq $72, %rsp
-        .Lmain_start:
-    
         # LoadIntConst(1, x)
         movq $1, -8(%rbp)
     
@@ -128,6 +125,95 @@ class TestAssemblyGenerator(TestCase):
         movq $0, %rax
         movq %rbp, %rsp
         popq %rbp
-        ret """
+        ret 
+        """
 
         self.assertEqual(trim(expect), trim(assemble("1 + 2 - 3 * 4 / 2;")))
+
+    def test_assemble_comparison(self):
+        expect =  """
+        # LoadBoolConst(True, x)
+        movq $1, -8(%rbp)
+    
+        # LoadIntConst(3, x2)
+        movq $3, -16(%rbp)
+    
+        # LoadIntConst(2, x3)
+        movq $2, -24(%rbp)
+    
+        # Call(<, [x2, x3], x4)
+        xor %rax, %rax
+        movq -16(%rbp), %rdx
+        cmpq -24(%rbp), %rdx
+        setl %al
+        movq %rax, -32(%rbp)
+    
+        # Call(!=, [x, x4], x5)
+        xor %rax, %rax
+        movq -8(%rbp), %rdx
+        cmpq -32(%rbp), %rdx
+        setne %al
+        movq %rax, -40(%rbp)
+    
+        # Return(None)
+        movq $0, %rax
+        movq %rbp, %rsp
+        popq %rbp
+        ret
+        """
+
+        self.assertEqual(trim(expect), trim(assemble("true != 3 < 2;")))
+
+    def test_assemble_unary_ops(self):
+        expect = """
+        # LoadIntConst(3, x)
+        movq $3, -8(%rbp)
+    
+        # Call(unary_-, [x], x2)
+        movq -8(%rbp), %rax
+        negq %rax
+        movq %rax, -16(%rbp)
+    
+        # LoadBoolConst(False, x3)
+        movq $0, -24(%rbp)
+    
+        # Call(unary_not, [x3], x4)
+        movq -24(%rbp), %rax
+        xorq $1, %rax
+        movq %rax, -32(%rbp)
+    
+        # Return(None)
+        movq $0, %rax
+        movq %rbp, %rsp
+        popq %rbp
+        ret
+        """
+
+        self.assertEqual(trim(expect), trim(assemble("-3; not false;")))
+
+    def test_assemble_built_in_functions(self):
+        expect = """
+        subq $8, %rsp
+        callq read_int
+        movq %rax, -8(%rbp)
+        addq $8, %rsp
+    
+        # Copy(x, x2)
+        movq -8(%rbp), %rax
+        movq %rax, -16(%rbp)
+    
+        # Call(print_int, [x2], x3)
+        subq $8, %rsp
+        movq -16(%rbp), %rdi
+        callq print_int
+        movq %rax, -24(%rbp)
+        addq $8, %rsp
+    
+        # Return(None)
+        movq $0, %rax
+        movq %rbp, %rsp
+        popq %rbp
+        ret
+        """
+
+        self.assertEqual(trim(expect), trim(assemble("var x: Int = read_int(); x")))
