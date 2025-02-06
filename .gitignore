@@ -3,4 +3,5 @@ __pycache__
 *_cache
 /.test-gadget/*
 !/.test-gadget/*.zst
+!/.test-gadget/*.json
 

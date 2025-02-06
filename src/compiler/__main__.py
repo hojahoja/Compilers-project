@@ -3,11 +3,17 @@ import json
 import re
 import sys
 from socketserver import ForkingTCPServer, StreamRequestHandler
+from compiler.tokenizer import tokenize
+from compiler.assembler import assemble_and_get_executable
+from compiler.bast import Expression
+from compiler.assembly_generator import generate_assembly
+from compiler.ir_generator import generate_ir, ROOT_TYPES
+from compiler.type_checker import typecheck
+from compiler.parser import parse
 from traceback import format_exception
 from typing import Any
 
-# TODO remove when you begin working on this.
-# mypy: ignore-errors
+
 def call_compiler(source_code: str, input_file_name: str) -> bytes:
     # *** TODO ***
     # Call your compiler here and return the compiled executable.
@@ -16,7 +22,11 @@ def call_compiler(source_code: str, input_file_name: str) -> bytes:
     # The input file name is informational only: you can optionally include in your source locations and error messages,
     # or you can ignore it.
     # *** TODO ***
-    raise NotImplementedError("Compiler not implemented")
+    expression: Expression = parse(tokenize(source_code, input_file_name))
+    typecheck(expression)
+    assembly_code: str = generate_assembly(generate_ir(ROOT_TYPES, expression))
+
+    return assemble_and_get_executable(assembly_code)
 
 
 def main() -> int:
@@ -27,13 +37,13 @@ def main() -> int:
     host = "127.0.0.1"
     port = 3000
     for arg in sys.argv[1:]:
-        if (m := re.fullmatch(r'--output=(.+)', arg)) is not None:
+        if (m := re.fullmatch(r"--output=(.+)", arg)) is not None:
             output_file = m[1]
-        elif (m := re.fullmatch(r'--host=(.+)', arg)) is not None:
+        elif (m := re.fullmatch(r"--host=(.+)", arg)) is not None:
             host = m[1]
-        elif (m := re.fullmatch(r'--port=(.+)', arg)) is not None:
+        elif (m := re.fullmatch(r"--port=(.+)", arg)) is not None:
             port = int(m[1])
-        elif arg.startswith('-'):
+        elif arg.startswith("-"):
             raise Exception(f"Unknown argument: {arg}")
         elif command is None:
             command = arg
@@ -43,7 +53,7 @@ def main() -> int:
             raise Exception("Multiple input files not supported")
 
     if command is None:
-        print(f"Error: command argument missing", file=sys.stderr)
+        print("Error: command argument missing", file=sys.stderr)
         return 1
 
     def read_source_code() -> str:
@@ -55,14 +65,14 @@ def main() -> int:
 
     # === Command implementations ===
 
-    if command == 'compile':
+    if command == "compile":
         source_code = read_source_code()
         if output_file is None:
             raise Exception("Output file flag --output=... required")
-        executable = call_compiler(source_code, input_file or '(source code)')
-        with open(output_file, 'wb') as f:
+        executable = call_compiler(source_code, input_file or "(source code)")
+        with open(output_file, "wb") as f:
             f.write(executable)
-    elif command == 'serve':
+    elif command == "serve":
         try:
             run_server(host, port)
         except KeyboardInterrupt:
@@ -91,7 +101,7 @@ def run_server(host: str, port: int) -> None:
                 elif input["command"] == "ping":
                     pass
                 else:
-                    result["error"] = "Unknown command: " + input['command']
+                    result["error"] = "Unknown command: " + input["command"]
             except Exception as e:
                 result["error"] = "".join(format_exception(e))
             result_str = json.dumps(result)
@@ -102,5 +112,5 @@ def run_server(host: str, port: int) -> None:
         server.serve_forever()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
