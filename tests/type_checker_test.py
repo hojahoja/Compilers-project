@@ -104,6 +104,11 @@ class TestTypeChecker(TestCase):
         """
         self.assertEqual(Int, check(code))
 
+    def test_typecheck_break_continue_expressions(self):
+        for name in ("break", "continue"):
+            with self.subTest(msg=name):
+                self.assertEqual(Unit, check(name))
+
     def test_typecheck_if_condition(self):
         test_cases = [
             ("Basic case integers", "if true then 3 else 4", Int),

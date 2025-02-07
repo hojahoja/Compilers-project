@@ -130,6 +130,8 @@ def parse(tokens: list[Token]) -> ast.Expression:
             expr = parse_if_expression()
         elif peek().text == "while":
             expr = parse_while_expression()
+        elif peek().type == "break_continue":
+            expr = parse_break_or_continue_expression()
         elif peek().type == "int_literal":
             expr = parse_int_literal()
         elif peek().type == "bool_literal":
@@ -202,6 +204,15 @@ def parse(tokens: list[Token]) -> ast.Expression:
         body: ast.Expression = parse_expression()
 
         return ast.WhileExpression(condition, body, location=location)
+
+    def parse_break_or_continue_expression() -> ast.BreakExpression | ast.ContinueExpression:
+        location: Location = peek().location
+        if peek().text == "continue":
+            consume("continue")
+            return ast.ContinueExpression(location=location)
+        else:
+            consume("break")
+            return ast.BreakExpression(location=location)
 
     def parse_int_literal() -> ast.Literal:
         if peek().type != "int_literal":

@@ -2,7 +2,7 @@ from base64 import b64encode
 import json
 import re
 import sys
-from socketserver import ForkingTCPServer, StreamRequestHandler
+from socketserver import ForkingTCPServer, StreamRequestHandler # type: ignore
 from compiler.tokenizer import tokenize
 from compiler.assembler import assemble_and_get_executable
 from compiler.bast import Expression
@@ -15,13 +15,6 @@ from typing import Any
 
 
 def call_compiler(source_code: str, input_file_name: str) -> bytes:
-    # *** TODO ***
-    # Call your compiler here and return the compiled executable.
-    # Raise an exception on compilation error.
-    #
-    # The input file name is informational only: you can optionally include in your source locations and error messages,
-    # or you can ignore it.
-    # *** TODO ***
     expression: Expression = parse(tokenize(source_code, input_file_name))
     typecheck(expression)
     assembly_code: str = generate_assembly(generate_ir(ROOT_TYPES, expression))
@@ -84,7 +77,7 @@ def main() -> int:
 
 
 def run_server(host: str, port: int) -> None:
-    class Server(ForkingTCPServer):
+    class Server(ForkingTCPServer): # type: ignore
         allow_reuse_address = True
         request_queue_size = 32
 

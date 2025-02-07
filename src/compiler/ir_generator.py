@@ -39,6 +39,8 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
     root_loc: Location = root_expr.location
 
+    loop_depth: int = 0
+
     def ir_var_generator(prefix: str, cls: typing.Type[IRVar]) -> Generator[IRVar, None, None]:
         i: int = 1
         while True:
@@ -69,6 +71,7 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
     def visit(st: SymTab[IRVar], expr: ast.Expression) -> IRVar:
         loc: Location = expr.location
+        nonlocal loop_depth
 
         match expr:
             case ast.Literal():
@@ -157,10 +160,22 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
                 # While Body
                 ins.append(l_while_body)
+                loop_depth += 1
+
                 visit(st, expr.body)
                 ins.append(ir.Jump(loc, l_while_start))
 
                 ins.append(l_while_end)
+                loop_depth -= 1
+
+            case ast.BreakExpression() | ast.ContinueExpression():
+                if loop_depth > 0:
+                    start_end: str = "while_start" if expr.name == "continue" else "while_end"
+                    label_name: str = start_end if loop_depth == 1 else f"{start_end}{loop_depth}"
+                    l_break_continue: ir.Label = ir.Label(loc, label_name)
+                    ins.append(ir.Jump(loc, l_break_continue))
+                else:
+                    raise SyntaxError(f"{loc} {expr.name} outside of loop")
 
             case ast.IfExpression():
                 # Creating then label and first LoadBoolConst is shared by both branches

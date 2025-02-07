@@ -130,6 +130,82 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("while true do false"))
 
+    def test_ir_break_continue(self):
+        code_break = """
+        var x = 0;
+        while true do {
+            while true do {
+                if x % 5 == 0 then {
+                    break;
+                } else {
+                    x = x + 1;
+                    break;
+                }
+            }
+            if x > 77 then {
+                break;
+            }
+            x = x + 1;
+        }
+        x
+        """
+
+        expect_break = """
+        Label(start)
+        LoadIntConst(0, x1)
+        Copy(x1, x2)
+        Label(while_start)
+        LoadBoolConst(True, x3)
+        CondJump(x3, Label(while_body), Label(while_end))
+        Label(while_body)
+        Label(while_start2)
+        LoadBoolConst(True, x4)
+        CondJump(x4, Label(while_body2), Label(while_end2))
+        Label(while_body2)
+        LoadIntConst(5, x5)
+        Call(%, [x2, x5], x6)
+        LoadIntConst(0, x7)
+        Call(==, [x6, x7], x8)
+        CondJump(x8, Label(then), Label(else))
+        Label(then)
+        Jump(Label(while_end2))
+        Copy(unit, x9)
+        Jump(Label(if_end))
+        Label(else)
+        LoadIntConst(1, x10)
+        Call(+, [x2, x10], x11)
+        Copy(x11, x2)
+        Jump(Label(while_end2))
+        Copy(unit, x9)
+        Label(if_end)
+        Jump(Label(while_start2))
+        Label(while_end2)
+        LoadIntConst(77, x12)
+        Call(>, [x2, x12], x13)
+        CondJump(x13, Label(then2), Label(if_end2))
+        Label(then2)
+        Jump(Label(while_end))
+        Label(if_end2)
+        LoadIntConst(1, x14)
+        Call(+, [x2, x14], x15)
+        Copy(x15, x2)
+        Jump(Label(while_start))
+        Label(while_end)
+        Call(print_int, [x2], x16)
+        """
+
+        code_continue = code_break.replace("break", "continue")
+        expect_continue = expect_break.replace("Jump(Label(while_end", "Jump(Label(while_start")
+
+        test_cases = [
+            ("break", code_break, expect_break),
+            ("continue", code_continue, expect_continue),
+        ]
+
+        for case, code, expect in test_cases:
+            with self.subTest(msg=case):
+                self.assertEqual(trim(expect), string_ir(code))
+
     def test_ir_if_then(self):
         expect = """
         Label(start)

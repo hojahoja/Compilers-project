@@ -211,6 +211,19 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, parse(tokenize("while a == b do while true do c = 3")))
 
+    def test_parse_continue_expression(self):
+        block = ast.BlockExpression([ast.Literal(3), ast.ContinueExpression(), ast.Identifier("x")])
+        expect = ast.WhileExpression(ast.Literal(True), block)
+
+        self.assertEqual(expect, parse(tokenize("while true do {3; continue; x}")))
+
+    def test_parse_break_expression(self):
+        block = ast.BlockExpression([ast.Literal(3), ast.BreakExpression(), ast.Identifier("x")])
+        expect = ast.WhileExpression(ast.Literal(True), block)
+
+        self.assertEqual(expect, parse(tokenize("while true do {3; break; x}")))
+
+
     def test_parse_function_call(self):
         args = [ast.Identifier("a"), ast.Literal(3)]
         expect = ast.FuncExpression(ast.Identifier("function"), args)

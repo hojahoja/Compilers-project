@@ -3,8 +3,8 @@ from dataclasses import dataclass, field
 from typing import Match, Pattern, Literal
 
 TokenType = Literal[
-    "while_loop", "conditional", "identifier", "bool_literal", "int_literal",
-    "operator", "punctuation", "end", "declaration",
+    "while_loop", "break_continue", "conditional", "identifier", "bool_literal",
+    "int_literal", "operator", "punctuation", "end", "declaration",
 ]
 
 
@@ -31,6 +31,7 @@ def tokenize(source_code: str, file_name: str = "no file") -> list[Token]:
 
     token_patterns: dict[TokenType, Pattern[str]] = {
         "while_loop": re.compile(r"\b(while|do)\b"),
+        "break_continue": re.compile(r"(break|continue)\b"),
         "conditional": re.compile(r"\b(if|then|else)\b"),
         "declaration": re.compile(r"\b(var)\b"),
         "operator": re.compile(r"\b(and|or|not)\b|(==|!=|<=|>=)|[-+*/%=<>]"),

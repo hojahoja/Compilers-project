@@ -60,6 +60,16 @@ class TestTokenizer(TestCase):
         ]
         self.assertEqual(expect, tokenize("while does do"))
 
+    def test_tokenizer_break_continue(self):
+        expect = [
+            Token("break_continue", "break", self.L),
+            Token("break_continue", "continue", self.L),
+            Token("identifier", "breaks", self.L),
+            Token("identifier", "no_continue", self.L),
+        ]
+
+        self.assertEqual(expect, tokenize("break continue breaks no_continue"))
+
     def test_tokenizer_operators(self):
         operators = "+ - * / % = == != < <= > >= and or not"
 

@@ -63,6 +63,16 @@ class WhileExpression(Expression):
 
 
 @dataclass
+class BreakExpression(Expression):
+    name: str = "break"
+
+
+@dataclass
+class ContinueExpression(Expression):
+    name: str = "continue"
+
+
+@dataclass
 class FuncExpression(Expression):
     identifier: Identifier
     args: list[Expression]
