@@ -66,7 +66,6 @@ class TestIrGenerator(TestCase):
 
         self.assertEqual(trim(expect), string_ir("true and true"))
 
-
     def test_ir_or(self):
         expect = """
         Label(start)
@@ -106,7 +105,6 @@ class TestIrGenerator(TestCase):
         """
 
         self.assertEqual(trim(expect), string_ir("if true then false; if true then false; if true then false"))
-
 
     def test_ir_variable_unary_minus(self):
         expect = """
@@ -167,6 +165,26 @@ class TestIrGenerator(TestCase):
         """
 
         self.assertEqual(trim(expect), string_ir("if true then (1+2) * 3 else 5 / 4"))
+
+    def test_ir_if_returns_unit_when_clauses_have_no_return_values(self):
+        code = "if true then {print_int(2);} else {print_int(3);}"
+        expect = """
+        Label(start)
+        LoadBoolConst(True, x1)
+        CondJump(x1, Label(then), Label(else))
+        Label(then)
+        LoadIntConst(2, x3)
+        Call(print_int, [x3], x4)
+        Copy(unit, x2)
+        Jump(Label(if_end))
+        Label(else)
+        LoadIntConst(3, x5)
+        Call(print_int, [x5], x6)
+        Copy(unit, x2)
+        Label(if_end)
+        """
+
+        self.assertEqual(trim(expect), string_ir(code))
 
     def test_ir_block_expression(self):
         expect = """

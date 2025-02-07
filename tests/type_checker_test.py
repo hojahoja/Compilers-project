@@ -143,15 +143,25 @@ class TestTypeChecker(TestCase):
 
     def test_typecheck_variable_assignment(self):
         test_cases = [
-            ("Boolean", "var k = true; k = false", Unit),
-            ("Integer", "var k = 4; k = 6", Unit),
-            ("Assign variable to another variable", "var x = 3; var k = 4; k = x", Unit),
-            ("Assign variable to same variable", "var x = true; x = x", Unit),
+            ("Boolean", "var k = true; k = false", Bool),
+            ("Integer", "var k = 4; k = 6", Int),
+            ("Assign variable to another variable", "var x = 3; var k = 4; k = x", Int),
+            ("Assign variable to same variable", "var x = true; x = x", Bool),
         ]
 
         for case, code, expect in test_cases:
             with self.subTest(msg=case, input=code):
                 self.assertEqual(expect, check(code))
+
+    def test_typecheck__chained_assignment(self):
+        code = """
+        var a = 3;
+        var b = 4;
+        var c = 5;
+        a = b = c;
+        a
+        """
+        self.assertEqual(Int, check(code))
 
     def test_typecheck_blocks(self):
         test_cases = [
@@ -204,7 +214,7 @@ class TestTypeChecker(TestCase):
             ("Binary comp", "2!=2", Bool),
             ("Declaration", "var x = 3", Unit),
             ("Typed declaration", "var x: Bool = false", Unit),
-            ("Assignment", "var x: Bool = false; x = true", Unit),
+            ("Assignment", "var x: Bool = false; x = true", Bool),
             ("declared variable", "var x: Bool = true; x", Bool),
             ("Changed variable", "var x = 1; x = 2; x", Int),
             ("Unary -", "-2", Int),

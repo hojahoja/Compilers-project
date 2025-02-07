@@ -49,7 +49,7 @@ def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> 
             if node.op in ["=", "==", "!="]:
                 if t1 is not t2:
                     raise TypeError(f'{node.location}: Operator "{node.op}" {t1} is not {t2}')
-                return Unit if node.op == "=" else Bool
+                return t2 if node.op == "=" else Bool
 
             binary_type: Type | None = table.get_value(node.op)
             if isinstance(binary_type, FunType):

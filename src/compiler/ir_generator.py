@@ -182,7 +182,12 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
 
                     # If
                     ins.append(ir.CondJump(loc, var_cond, l_then, l_else))
-                    copy_var: IRVar = new_var(Bool) if expr.type == Bool else new_var(Int)
+                    if expr.type == Bool:
+                        copy_var: IRVar = new_var(Bool)
+                    elif expr.type == Int:
+                        copy_var = new_var(Int)
+                    else:
+                        copy_var = new_var(Unit)
 
                     # Then
                     ins.append(l_then)
