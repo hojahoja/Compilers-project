@@ -31,7 +31,20 @@ ROOT_TYPES: dict[IRVar, Type] = {
 }
 
 
-def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> list[ir.Instruction]:
+def generate_ir(root_types: dict[IRVar, Type], root_node: ast.Expression | ast.Module) -> list[ir.Instruction]:
+    instructions: list[ir.Instruction] = []
+    module_node: ast.Module | ast.FuncDef | ast.Expression = root_node
+    if isinstance(root_node, ast.Module):
+        for node in root_node.body[:-1]:
+            pass
+        module_node = root_node.body[-1]
+    if isinstance(module_node, ast.Expression):
+        generate_ir_body(root_types, module_node, instructions)
+    return instructions
+
+
+def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, ins: list[ir.Instruction]) -> list[
+    ir.Instruction]:
     var_types: dict[IRVar, Type] = root_types.copy()
 
     var_unit = IRVar("unit")
@@ -66,8 +79,6 @@ def generate_ir(root_types: dict[IRVar, Type], root_expr: ast.Expression) -> lis
             ir_labels_adjust[name] = 1
 
         return ir.Label(root_loc, name)
-
-    ins: list[ir.Instruction] = []
 
     def visit(st: SymTab[IRVar], expr: ast.Expression) -> IRVar:
         loc: Location = expr.location
@@ -268,7 +279,7 @@ def stringify_ir(expressions: list[ir.Instruction]) -> str:
 
 
 def code_to_ir(code: str) -> list[ir.Instruction]:
-    ast_expr: ast.Expression = parse(tokenize(code))
+    ast_expr: ast.Expression | ast.Module = parse(tokenize(code))
     typecheck(ast_expr)
     return generate_ir(ROOT_TYPES, ast_expr)
 

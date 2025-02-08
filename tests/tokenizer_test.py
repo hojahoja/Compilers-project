@@ -10,33 +10,33 @@ class TestTokenizer(TestCase):
 
     def setUp(self):
         self.location_patcher = patch('compiler.tokenizer.Location')
-        self.L = self.location_patcher.start().return_value
+        self.location_patcher.start()
 
     def tearDown(self):
         self.location_patcher.stop()
 
     def test_tokenizer_integers(self):
         expect = [
-            Token("int_literal", "123", self.L),
-            Token("int_literal", "196123", self.L),
-            Token("int_literal", "0", self.L),
-            Token("int_literal", "2", self.L)
+            Token("int_literal", "123"),
+            Token("int_literal", "196123"),
+            Token("int_literal", "0"),
+            Token("int_literal", "2")
         ]
         self.assertEqual(expect, tokenize("123     196123 \n0 2"))
 
     def test_tokenizer_booleans(self):
-        expect = [Token("bool_literal", "true", self.L), Token("bool_literal", "false", self.L)]
+        expect = [Token("bool_literal", "true"), Token("bool_literal", "false")]
         self.assertEqual(expect, tokenize("true     false"))
 
     def test_tokenizer_identifiers(self):
         expect = [
-            Token("identifier", "variableName", self.L),
-            Token("identifier", "name_of_variable", self.L),
-            Token("identifier", "trues", self.L),
-            Token("identifier", "when", self.L),
-            Token("identifier", "Int", self.L),
-            Token("identifier", "Bool", self.L),
-            Token("identifier", "Unit", self.L),
+            Token("identifier", "variableName"),
+            Token("identifier", "name_of_variable"),
+            Token("identifier", "trues"),
+            Token("identifier", "when"),
+            Token("identifier", "Int"),
+            Token("identifier", "Bool"),
+            Token("identifier", "Unit"),
         ]
         code = "variableName \n\n\n name_of_variable trues  when Int Bool Unit"
 
@@ -44,9 +44,9 @@ class TestTokenizer(TestCase):
 
     def test_tokenizer_conditionals(self):
         expect = [
-            Token("conditional", "if", self.L),
-            Token("conditional", "then", self.L),
-            Token("conditional", "else", self.L),
+            Token("conditional", "if"),
+            Token("conditional", "then"),
+            Token("conditional", "else"),
         ]
 
         code = "if then else"
@@ -54,18 +54,18 @@ class TestTokenizer(TestCase):
 
     def test_tokenizer_while_loop(self):
         expect = [
-            Token("while_loop", "while", self.L),
-            Token("identifier", "does", self.L),
-            Token("while_loop", "do", self.L),
+            Token("while_loop", "while"),
+            Token("identifier", "does"),
+            Token("while_loop", "do"),
         ]
         self.assertEqual(expect, tokenize("while does do"))
 
     def test_tokenizer_break_continue(self):
         expect = [
-            Token("break_continue", "break", self.L),
-            Token("break_continue", "continue", self.L),
-            Token("identifier", "breaks", self.L),
-            Token("identifier", "no_continue", self.L),
+            Token("break_continue", "break"),
+            Token("break_continue", "continue"),
+            Token("identifier", "breaks"),
+            Token("identifier", "no_continue"),
         ]
 
         self.assertEqual(expect, tokenize("break continue breaks no_continue"))
@@ -75,17 +75,17 @@ class TestTokenizer(TestCase):
 
         expect = []
         for op in operators.split(" "):
-            expect.append(Token("operator", op, self.L))
+            expect.append(Token("operator", op))
 
         self.assertEqual(expect, tokenize(operators))
 
     def test_variable_declaration(self):
         expect = [
-            Token("identifier", "variable", self.L),
-            Token("declaration", "var", self.L),
-            Token("identifier", "varchar", self.L),
-            Token("operator", "=", self.L),
-            Token("int_literal", "2", self.L),
+            Token("identifier", "variable"),
+            Token("declaration", "var"),
+            Token("identifier", "varchar"),
+            Token("operator", "="),
+            Token("int_literal", "2"),
         ]
 
         self.assertEqual(expect, tokenize("variable var varchar = 2"))
@@ -95,9 +95,50 @@ class TestTokenizer(TestCase):
 
         expect = []
         for pun in punctuation.split(" "):
-            expect.append(Token("punctuation", pun, self.L))
+            expect.append(Token("punctuation", pun))
 
         self.assertEqual(expect, tokenize(punctuation))
+
+    def test_tokenizer_return(self):
+        expect = [
+            Token("return", "return"),
+            Token("identifier", "returns"),
+        ]
+
+        self.assertEqual(expect, tokenize("return returns"))
+
+    def test_tokenizer_function(self):
+        expect = [
+            Token("function", "fun"),
+            Token("identifier", "not_fun"),
+        ]
+
+        self.assertEqual(expect, tokenize("fun not_fun"))
+
+    def test_tokenizer_function_definition(self):
+        code = """
+        fun tokenize(token: Int): Int {
+            return token;
+        }
+        """
+        expect = [
+            Token("function", "fun"),
+            Token("identifier", "tokenize"),
+            Token("punctuation", "("),
+            Token("identifier", "token"),
+            Token("punctuation", ":"),
+            Token("identifier", "Int"),
+            Token("punctuation", ")"),
+            Token("punctuation", ":"),
+            Token("identifier", "Int"),
+            Token("punctuation", "{"),
+            Token("return", "return"),
+            Token("identifier", "token"),
+            Token("punctuation", ";"),
+            Token("punctuation", "}"),
+        ]
+
+        self.assertEqual(expect, tokenize(code))
 
     def test_tokenizer_one_line_comments(self):
         command = """
@@ -127,25 +168,25 @@ class TestTokenizer(TestCase):
 
     def test_tokenizer_combined_use(self):
         expect = [
-            Token("declaration", "var", self.L),
-            Token("identifier", "x", self.L),
-            Token("operator", "=", self.L),
-            Token("int_literal", "2", self.L),
-            Token("conditional", "if", self.L),
-            Token("punctuation", "(", self.L),
-            Token("int_literal", "3", self.L),
-            Token("operator", "+", self.L),
-            Token("int_literal", "2", self.L),
-            Token("punctuation", ")", self.L),
-            Token("operator", "==", self.L),
-            Token("int_literal", "5", self.L),
-            Token("operator", "or", self.L),
-            Token("operator", "not", self.L),
-            Token("bool_literal", "false", self.L),
-            Token("conditional", "then", self.L),
-            Token("identifier", "x", self.L),
-            Token("operator", "=", self.L),
-            Token("int_literal", "6", self.L),
+            Token("declaration", "var"),
+            Token("identifier", "x"),
+            Token("operator", "="),
+            Token("int_literal", "2"),
+            Token("conditional", "if"),
+            Token("punctuation", "("),
+            Token("int_literal", "3"),
+            Token("operator", "+"),
+            Token("int_literal", "2"),
+            Token("punctuation", ")"),
+            Token("operator", "=="),
+            Token("int_literal", "5"),
+            Token("operator", "or"),
+            Token("operator", "not"),
+            Token("bool_literal", "false"),
+            Token("conditional", "then"),
+            Token("identifier", "x"),
+            Token("operator", "="),
+            Token("int_literal", "6"),
         ]
 
         command = """

@@ -81,3 +81,22 @@ class FuncExpression(Expression):
 @dataclass
 class BlockExpression(Expression):
     body: list[Expression]
+
+@dataclass
+class FuncParam:
+    name: str
+    type_expression: TypeExpression
+    location: Location = field(kw_only=True, default=Location("no file", 1, 1))
+
+@dataclass
+class FuncDef:
+    name: str
+    params: list[FuncParam]
+    body: BlockExpression
+    type_expression: TypeExpression | None = None
+    location: Location = field(kw_only=True, default=Location("no file", 1, 1))
+
+@dataclass
+class Module:
+    body: list[FuncDef | Expression]
+    location: Location = field(kw_only=True, default=Location("no file", 1, 1))

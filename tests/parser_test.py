@@ -223,7 +223,6 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, parse(tokenize("while true do {3; break; x}")))
 
-
     def test_parse_function_call(self):
         args = [ast.Identifier("a"), ast.Literal(3)]
         expect = ast.FuncExpression(ast.Identifier("function"), args)
@@ -467,16 +466,73 @@ class TestParser(TestCase):
             with self.subTest(expression=case):
                 self.assertEqual(location, Location("no file", *expect))
 
-    def test_raise_error_if_entire_input_is_not_parsed(self):
+    def test_parse_empty_func_definition(self):
+        code = "fun f() {}"
+
+        body = ast.BlockExpression([])
+        func = ast.FuncDef("f", [], body)
+        expect = ast.Module([func])
+
+        self.assertEqual(expect, parse(tokenize(code)))
+
+    def test_parse_empty_func_with_params(self):
+        code = "fun f(a: Int) {}"
+
+        body = ast.BlockExpression([])
+        params = [ast.FuncParam("a", ast.TypeExpression("Int"))]
+        func = ast.FuncDef("f", params, body)
+        expect = ast.Module([func])
+
+        with self.subTest(msg="One param"):
+            self.assertEqual(expect, parse(tokenize(code)))
+
+        code = "fun f(a: Int, b: Int, c: Bool) {}"
+        params.append(ast.FuncParam("b", ast.TypeExpression("Int")))
+        params.append(ast.FuncParam("c", ast.TypeExpression("Bool")))
+
+        with self.subTest(msg="multiple params"):
+            self.assertEqual(expect, parse(tokenize(code)))
+
+    def test_parse_function_def_with_body(self):
+        code = "fun f(a: Int) {1+a;}"
+
+        body = ast.BlockExpression([ast.BinaryOp(ast.Literal(1), "+", ast.Identifier("a")), ast.Literal(None)])
+        params = [ast.FuncParam("a", ast.TypeExpression("Int"))]
+        func = ast.FuncDef("f", params, body)
+        expect = ast.Module([func])
+
+        self.assertEqual(expect, parse(tokenize(code)))
+
+    def test_parse_modules_with_functions_and_body(self):
+        code = """
+        fun f(a: Int, b: Int) {a+b}
+        fun k(a: Int, b: Int) {a+b}
+        1 + f(1, 2);
+        """
+        a = ast.Identifier("a")
+        b = ast.Identifier("b")
+        params = [ast.FuncParam("a", ast.TypeExpression("Int")), ast.FuncParam("b", ast.TypeExpression("Int"))]
+        body = ast.BlockExpression([ast.BinaryOp(a, "+", b)])
+        func_f = ast.FuncDef("f", params, body)
+        func_k = ast.FuncDef("k", params, body)
+
+        call_f = ast.FuncExpression(ast.Identifier("f"), [ast.Literal(1), ast.Literal(2)])
+        plus = ast.BinaryOp(ast.Literal(1), "+", call_f)
+        module_expressions = ast.BlockExpression([plus, ast.Literal(None)])
+        expect = ast.Module([func_f, func_k, module_expressions])
+
+        self.assertEqual(expect, parse(tokenize(code)))
+
+    def test_parse_raise_error_if_entire_input_is_not_parsed(self):
         tokens = tokenize("4 + 3 5")
 
         msg = "could not parse the whole expression"
         self.assertRaisesRegex(SyntaxError, msg, parse, tokens)
 
-    def test_empty_input_returns_an_empty_ast_expression(self):
+    def test_parse_empty_input_returns_an_empty_ast_expression(self):
         self.assertEqual(ast.Expression(), parse([]))
 
-    def test_invalid_input(self):
+    def test_parse_invalid_input(self):
         self.location_patcher.stop()
         test_cases = [
             ("Unexpected operator", "+ 2", SyntaxError, "integer literal or an identifier"),
@@ -508,6 +564,24 @@ class TestParser(TestCase):
             ("var needs an initializer", "var x 3", SyntaxError, 'column=7.* expected: "="'),
             ("Using typed var without colon", "var Int x = 1", SyntaxError, 'column=9.* expected: "="'),
             ("Misplaced colon in typed var", "var: x = 1", SyntaxError, 'column=4.* expected an identifier'),
+        ]
+
+        for case, code, exception, error_msg in test_cases:
+            with self.subTest(msg=case, input=code):
+                tokens = tokenize(code)
+                self.assertRaisesRegex(exception, error_msg, parse, tokens)
+
+    def test_parse_function_definition_invalid_input(self):
+        self.location_patcher.stop()
+        test_cases = [
+            ("Missing identifier", "fun (a: Int)", SyntaxError, 'line=1.*mn=5.* expected an identifier'),
+            ("No opening bracket", "fun f a: Int) {}", SyntaxError, r'line=1.*mn=7.* expected: "\("'),
+            ("Missing semicolon from param", "fun f (a Int) {}", SyntaxError, r'line=1.*mn=10.* expected: ":"'),
+            ("Missing semicolon from return type", "fun f() Int {}", SyntaxError, r'line=1.*mn=9.* expected: "{"'),
+            ("Missing type expression", "fun f (a:) {}", SyntaxError, r'line=1.*mn=10.* type hint'),
+            ("Missing type expression from return typen", "fun f(): {}", SyntaxError, r'line=1.*mn=8.* type hint'),
+            ("Missing colon between params", "fun f (a: Int b: Int) {}", SyntaxError, r'line=1.*mn=15.* expected: ","'),
+            ("Ends with a semicolon", "fun f() {};a", SyntaxError, r'line=1.*mn=11.* literal or an identifier'),
         ]
 
         for case, code, exception, error_msg in test_cases:

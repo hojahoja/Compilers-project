@@ -5,7 +5,7 @@ import sys
 from socketserver import ForkingTCPServer, StreamRequestHandler # type: ignore
 from compiler.tokenizer import tokenize
 from compiler.assembler import assemble_and_get_executable
-from compiler.bast import Expression
+from compiler.bast import Expression, Module
 from compiler.assembly_generator import generate_assembly
 from compiler.ir_generator import generate_ir, ROOT_TYPES
 from compiler.type_checker import typecheck
@@ -15,7 +15,7 @@ from typing import Any
 
 
 def call_compiler(source_code: str, input_file_name: str) -> bytes:
-    expression: Expression = parse(tokenize(source_code, input_file_name))
+    expression: Expression | Module  = parse(tokenize(source_code, input_file_name))
     typecheck(expression)
     assembly_code: str = generate_assembly(generate_ir(ROOT_TYPES, expression))
 

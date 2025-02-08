@@ -4,7 +4,7 @@ import compiler.bast as ast
 from compiler.tokenizer import Token, Location
 
 
-def parse(tokens: list[Token]) -> ast.Expression:
+def parse(tokens: list[Token]) -> ast.Module | ast.Expression:
     if not tokens:
         return ast.Expression()
 
@@ -28,6 +28,47 @@ def parse(tokens: list[Token]) -> ast.Expression:
 
         pos += 1
         return token
+
+    def parse_module() -> ast.Module | ast.Expression:
+        module_body: list[ast.FuncDef | ast.Expression] = []
+        start_loc: Location = peek().location
+
+        while peek().text == "fun":
+            module_body.append(parse_func_def())
+
+        if not module_body:
+            return parse_top_level_block()
+        else:
+            module: ast.Module = ast.Module(module_body, location=start_loc)
+            if peek().type != "end":
+                module_body.append(parse_top_level_block())
+            return module
+
+    def parse_func_def() -> ast.FuncDef:
+        loc = consume("fun").location
+        identifier: ast.Identifier = parse_identifier()
+        params: list[ast.FuncParam] = parse_function_params()
+        if peek().text == ":":
+            type_expression: ast.TypeExpression | None = parse_type_expression()
+        else:
+            type_expression = None
+        body: ast.BlockExpression = parse_block()
+        return ast.FuncDef(identifier.name, params, body, type_expression, location=loc)
+
+    def parse_function_params() -> list[ast.FuncParam]:
+        consume("(")
+        params: list[ast.FuncParam] = []
+        while peek().text != ")":
+            identifier: ast.Identifier = parse_identifier()
+            location: Location = identifier.location
+            consume(":")
+            type_expression: ast.TypeExpression = parse_type_expression()
+            if peek().text != ")":
+                consume(",")
+            params.append(ast.FuncParam(identifier.name, type_expression, location=location))
+        consume(")")
+
+        return params
 
     def parse_top_level_block() -> ast.Expression:
 
@@ -243,7 +284,7 @@ def parse(tokens: list[Token]) -> ast.Expression:
 
         return args
 
-    expression: ast.Expression = parse_top_level_block()
+    top_node: ast.Module | ast.Expression = parse_module()
     if pos < len(tokens):
         raise SyntaxError(f"{peek().location}: could not parse the whole expression")
-    return expression
+    return top_node

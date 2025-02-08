@@ -3,12 +3,16 @@ from compiler.c_types import Int, Bool, Unit, Type, FunType
 from compiler.symtab import SymTab
 
 
-def typecheck(node: ast.Expression | None, table: SymTab[Type] | None = None) -> Type:
+def typecheck(node: ast.Expression | ast.Module | None, table: SymTab[Type] | None = None) -> Type:
+    if isinstance(node, ast.Module):
+        return typecheck_funcs()
     ast_type: Type = get_type(node, table)
     if node:
         node.type = ast_type
     return ast_type
 
+def typecheck_funcs() -> Type:
+    return Unit
 
 def get_type(node: ast.Expression | None, table: SymTab[Type] | None = None) -> Type:
     if table is None:
