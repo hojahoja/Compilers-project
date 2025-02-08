@@ -94,6 +94,7 @@ class FuncDef:
     params: list[FuncParam]
     body: BlockExpression
     type_expression: TypeExpression | None = None
+    type: Type = Unit
     location: Location = field(kw_only=True, default=Location("no file", 1, 1))
 
 @dataclass

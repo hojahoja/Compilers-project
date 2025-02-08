@@ -49,6 +49,7 @@ def parse(tokens: list[Token]) -> ast.Module | ast.Expression:
         identifier: ast.Identifier = parse_identifier()
         params: list[ast.FuncParam] = parse_function_params()
         if peek().text == ":":
+            consume()
             type_expression: ast.TypeExpression | None = parse_type_expression()
         else:
             type_expression = None

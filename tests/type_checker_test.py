@@ -1,10 +1,9 @@
 from unittest import TestCase
-from unittest.mock import patch
 
-from compiler.c_types import Int, Bool, Unit, FunType
+from compiler.c_types import Int, Bool, Unit
 from compiler.parser import parse
 from compiler.tokenizer import tokenize
-from compiler.type_checker import typecheck, SymTab
+from compiler.type_checker import typecheck
 
 
 # mypy: ignore-errors
@@ -194,19 +193,21 @@ class TestTypeChecker(TestCase):
             with self.subTest(msg=case, input=code):
                 self.assertEqual(expect, check(code))
 
-    @patch("compiler.type_checker.SymTab")
-    def test_typecheck_multiple_parameter_function_calls(self, mock_table):
-        table = SymTab({"triple_param": FunType("function", (Int, Int, Bool), Bool)})
-        mock_table.return_value = table
+    def test_typecheck_multiple_parameter_function_calls(self):
 
-        code = "triple_param(3, 21, false)"
+        code = "fun triple_param(x: Int, y: Int, z: Bool) {} triple_param(3, 21, false)"
         with self.subTest(msg="Correct parameter types", input=code):
-            self.assertEqual(Bool, check(code))
+            self.assertEqual(Unit, check(code))
 
-        code = "triple_param(3, 21, 0)"
+        code = "fun triple_param(x: Int, y: Int, z: Bool) {} triple_param(3, 21, 0)"
         with self.subTest(msg="Incorrect parameter types", input=code):
-            message = "mn=1.* parameter 3.*Bool.*Int"
+            message = "mn=46.* parameter 3.*Bool.*Int"
             self.assertRaisesRegex(TypeError, message, check, code)
+
+    def test_typecheck_test_function_definition_only(self):
+        code = "fun f(x :Int): Int {}"
+        self.assertEqual(Unit, check(code))
+
 
     def test_ast_type_unassigned(self):
         self.assertEqual(Unit, parse(tokenize("var x: Bool = true; x")).type)
@@ -253,6 +254,7 @@ class TestTypeChecker(TestCase):
             ("Then and else clause different type", "if true then 4 else false", TypeError, r'mn=1.*Int.*Bool'),
             ("Variable doesn't exist: Assignment", "x = 2", NameError, r'mn=1.* "x" is not defined'),
             ("Variable doesn't exist: Operator", "4 >= y", NameError, r'mn=6.* "y" is not defined'),
+            ("Variable doesn't exist: Scope", "{var x = 1}x", NameError, r'mn=12.* "x" is not defined'),
             ("Variable already exists in scope", "var x = 3; var x = 2", TypeError, r'mn=12.* "x" already declared'),
             ('Mismatching type for "="', "var x = true; x = 2", TypeError, r'mn=17.* "=".*Bool.*not.*Int'),
             ('Mismatching type for "=="', "2 == false", TypeError, r'mn=3.* "==".*Int.*not.*Bool'),

@@ -36,7 +36,10 @@ def generate_ir(root_types: dict[IRVar, Type], root_node: ast.Expression | ast.M
     module_node: ast.Module | ast.FuncDef | ast.Expression = root_node
     if isinstance(root_node, ast.Module):
         for node in root_node.body[:-1]:
-            pass
+            if isinstance(node, ast.FuncDef):
+                root_types[IRVar(node.name)] = node.type
+                pass
+
         module_node = root_node.body[-1]
     if isinstance(module_node, ast.Expression):
         generate_ir_body(root_types, module_node, instructions)
