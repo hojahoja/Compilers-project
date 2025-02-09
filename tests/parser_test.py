@@ -579,7 +579,7 @@ class TestParser(TestCase):
             ("Missing semicolon from param", "fun f (a Int) {}", SyntaxError, r'line=1.*mn=10.* expected: ":"'),
             ("Missing semicolon from return type", "fun f() Int {}", SyntaxError, r'line=1.*mn=9.* expected: "{"'),
             ("Missing type expression", "fun f (a:) {}", SyntaxError, r'line=1.*mn=10.* type hint'),
-            ("Missing type expression from return typen", "fun f(): {}", SyntaxError, r'line=1.*mn=8.* type hint'),
+            ("Missing type expression from return type", "fun f(): {}", SyntaxError, r'line=1.*mn=10.* type hint'),
             ("Missing colon between params", "fun f (a: Int b: Int) {}", SyntaxError, r'line=1.*mn=15.* expected: ","'),
             ("Ends with a semicolon", "fun f() {};a", SyntaxError, r'line=1.*mn=11.* literal or an identifier'),
         ]

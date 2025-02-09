@@ -208,6 +208,24 @@ class TestTypeChecker(TestCase):
         code = "fun f(x :Int): Int {}"
         self.assertEqual(Unit, check(code))
 
+    def test_typecheck_test_function_definition_with_body(self):
+        self.assertEqual(Unit, check("fun f() {var x = 1; x + 1}"))
+
+    def test_typecheck_call_defined_function(self):
+        code = """
+        fun f(x: Int) {var y = 1; x + y}
+        f(2)
+        """
+        self.assertEqual(Unit, check(code))
+
+    def test_typecheck_recursive_function_calls(self):
+        code = """
+        fun f() {f()}
+        fun g() {k()}
+        fun k() {g()}
+        """
+
+        self.assertEqual(Unit, check(code))
 
     def test_ast_type_unassigned(self):
         self.assertEqual(Unit, parse(tokenize("var x: Bool = true; x")).type)
@@ -241,6 +259,15 @@ class TestTypeChecker(TestCase):
 
                 self.assertEqual(expect, expression.type)
 
+    def test_typecheck_function_definition_errors(self):
+        test_cases = [
+            ("two same functions", "fun f(){} fun f(){}", NameError, r'mn=11.* Function "f" already declared'),
+        ]
+
+        for case, code, error, message in test_cases:
+            with self.subTest(msg=case, input=code):
+                self.assertRaisesRegex(error, message, check, code)
+
     def test_typecheck_errors(self):
         shenanigans2 = "var x = 3; var k: x = 2"
 
@@ -255,7 +282,7 @@ class TestTypeChecker(TestCase):
             ("Variable doesn't exist: Assignment", "x = 2", NameError, r'mn=1.* "x" is not defined'),
             ("Variable doesn't exist: Operator", "4 >= y", NameError, r'mn=6.* "y" is not defined'),
             ("Variable doesn't exist: Scope", "{var x = 1}x", NameError, r'mn=12.* "x" is not defined'),
-            ("Variable already exists in scope", "var x = 3; var x = 2", TypeError, r'mn=12.* "x" already declared'),
+            ("Variable already exists in scope", "var x = 3; var x = 2", NameError, r'mn=12.* "x" already declared'),
             ('Mismatching type for "="', "var x = true; x = 2", TypeError, r'mn=17.* "=".*Bool.*not.*Int'),
             ('Mismatching type for "=="', "2 == false", TypeError, r'mn=3.* "==".*Int.*not.*Bool'),
             ('Mismatching type for "!="', "true != 0", TypeError, r'mn=6.* "!=".*Bool.*not.*Int'),
