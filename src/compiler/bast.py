@@ -83,6 +83,10 @@ class BlockExpression(Expression):
     body: list[Expression]
 
 @dataclass
+class ReturnExpression(Expression):
+    result: Expression | None = None
+
+@dataclass
 class FuncParam:
     name: str
     type_expression: TypeExpression

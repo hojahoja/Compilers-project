@@ -27,6 +27,8 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
 
     function_tables: dict[str, SymTab[Type]] = {}
 
+    function_return_value: Type | None = None
+
     def assign_type(node: ast.Expression | None, table: SymTab[Type]) -> Type:
         ast_type: Type = get_type(node, table)
         if node:
@@ -114,6 +116,15 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
                     raise NameError(f'{node.location}: Variable "{name}" already declared in scope:')
                 table.add_local(name, t1)
 
+            case ast.ReturnExpression():
+                if function_return_value:
+                    t1 = assign_type(node.result, table)
+                    if t1 == function_return_value:
+                        return t1
+                    raise TypeError(f'{node.location}: expected {function_return_value}, got {t1}')
+
+                raise SyntaxError(f'{node.location}: "return" outside function')
+
             case ast.FuncExpression():
                 name = node.identifier.name
                 func_type: Type | None = table.get_value(name)
@@ -134,7 +145,8 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
         if not expr:
             return Unit
         elif expr.name in known_types:
-            return known_types[expr.name]
+            expr.type = known_types[expr.name]
+            return expr.type
         else:
             raise TypeError(f'{expr.location}: Unknown type "{expr.name}"')
 
@@ -149,23 +161,27 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
                 param_type = convert(param.type_expression)
                 p_types.append(param_type)
                 function_symtable.add_local(param.name, param_type)
+
             return tuple(p_types)
 
         for function in functions:
             if not root_table.in_locals(function.name):
-
                 param_types: tuple[Type, ...] = process_function_params(function.params)
-
                 return_type: Type = convert(function.type_expression)
                 fun_type: FunType = FunType("function", tuple(param_types), return_type)
                 root_table.add_local(function.name, fun_type)
-
             else:
                 raise NameError(f'{function.location}: Function "{function.name}" already declared')
 
     def type_check_functions(functions: list[ast.FuncDef]) -> None:
+        nonlocal function_return_value
         for function in functions:
+            function_return_value = convert(function.type_expression)
             assign_type(function.body, function_tables[function.name])
+            function.type = root_table.require(function.name)
+            print()
+        function_return_value = None
+
 
     def init_typechecker() -> ast.Expression | None:
         if isinstance(root_node, ast.Module):

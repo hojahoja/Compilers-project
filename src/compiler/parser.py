@@ -174,6 +174,8 @@ def parse(tokens: list[Token]) -> ast.Module | ast.Expression:
             expr = parse_while_expression()
         elif peek().type == "break_continue":
             expr = parse_break_or_continue_expression()
+        elif peek().text == "return":
+            expr = parse_return_expression()
         elif peek().type == "int_literal":
             expr = parse_int_literal()
         elif peek().type == "bool_literal":
@@ -191,6 +193,13 @@ def parse(tokens: list[Token]) -> ast.Module | ast.Expression:
             return ast.FuncExpression(expr, args, location=location)
 
         return expr
+
+    def parse_return_expression() -> ast.ReturnExpression:
+        location: Location = peek().location
+        consume("return")
+        expr: ast.Expression | None = parse_expression() if peek().text != ";" else None
+        return ast.ReturnExpression(expr, location=location)
+
 
     def parse_parenthesized() -> ast.Expression:
         consume("(")

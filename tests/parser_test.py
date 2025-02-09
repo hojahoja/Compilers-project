@@ -523,6 +523,31 @@ class TestParser(TestCase):
 
         self.assertEqual(expect, parse(tokenize(code)))
 
+    def test_parse_empty_return_value(self):
+        code = "return;"
+
+        expect = ast.BlockExpression([ast.ReturnExpression(None), ast.Literal(None)])
+
+        self.assertEqual(expect, parse(tokenize(code)))
+
+    def test_parse_return_with_value(self):
+        neq = ast.BinaryOp(ast.Literal(4), "!=", ast.Literal(3))
+        expect = ast.ReturnExpression(neq)
+
+        self.assertEqual(expect, parse(tokenize("return 4 != 3")))
+
+    def test_parse_simple_function_with_return_value(self):
+        code = "fun f(x: Int) {return x + 2;}"
+
+        param = ast.FuncParam("x", ast.TypeExpression("Int"))
+        plus = ast.BinaryOp(ast.Identifier("x"), "+", ast.Literal(2))
+        ret = ast.ReturnExpression(plus)
+        body = ast.BlockExpression([ret, ast.Literal(None)])
+        func_f = ast.FuncDef("f", [param], body)
+        expect = ast.Module([func_f])
+
+        self.assertEqual(expect, parse(tokenize(code)))
+
     def test_parse_raise_error_if_entire_input_is_not_parsed(self):
         tokens = tokenize("4 + 3 5")
 
@@ -582,6 +607,7 @@ class TestParser(TestCase):
             ("Missing type expression from return type", "fun f(): {}", SyntaxError, r'line=1.*mn=10.* type hint'),
             ("Missing colon between params", "fun f (a: Int b: Int) {}", SyntaxError, r'line=1.*mn=15.* expected: ","'),
             ("Ends with a semicolon", "fun f() {};a", SyntaxError, r'line=1.*mn=11.* literal or an identifier'),
+            ('Empty return needs a ";"', "fun f() {return}", SyntaxError, r'line=1.*mn=16.* literal or an identifier'),
         ]
 
         for case, code, exception, error_msg in test_cases:

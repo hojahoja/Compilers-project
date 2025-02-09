@@ -227,6 +227,20 @@ class TestTypeChecker(TestCase):
 
         self.assertEqual(Unit, check(code))
 
+    def test_typecheck_function_return_values(self):
+        test_cases = [
+            ("Boolean", "fun f(): Bool {return true} f()", Bool),
+            ("Integer", "fun f(): Int {return 42;} f()", Int),
+            ("No return value", "fun f(){} f()", Unit),
+            ("Empty return value", "fun f(x: Int) {return;} f(2)", Unit),
+            ("Boolean parameter", "fun f(x: Int, y: Bool): Int {return x;} f(2, true)", Int),
+            ("Integer parameter", "fun f(x: Int, y: Bool): Bool {return y} f(2, false)", Bool),
+        ]
+
+        for case, code, expect in test_cases:
+            with self.subTest(msg=case, input=code):
+                self.assertEqual(expect, check(code))
+
     def test_ast_type_unassigned(self):
         self.assertEqual(Unit, parse(tokenize("var x: Bool = true; x")).type)
 
@@ -261,7 +275,10 @@ class TestTypeChecker(TestCase):
 
     def test_typecheck_function_definition_errors(self):
         test_cases = [
-            ("two same functions", "fun f(){} fun f(){}", NameError, r'mn=11.* Function "f" already declared'),
+            ("Two same functions", "fun f(){} fun f(){}", NameError, r'mn=11.* Function "f" already declared'),
+            ("Return outside function", "fun f(){} return 2", SyntaxError, r'mn=11.* "return" outside function'),
+            ("Assign incorrect type to param", "fun f(x: Bool) {x = 2}", TypeError, r'mn=19.*Bool.*Int'),
+            ("Return incorrect type", "fun f(): Int {return false}", TypeError, r'mn=15.*Int.*Bool'),
         ]
 
         for case, code, error, message in test_cases:
