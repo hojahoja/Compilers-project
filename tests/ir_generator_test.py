@@ -1,27 +1,9 @@
 from unittest import TestCase
 
-from compiler.c_types import FunType
-from compiler.ir import IRVar
-from compiler.ir_generator import generate_ir
-from compiler.parser import parse
-from compiler.tokenizer import tokenize
-from compiler.type_checker import typecheck
+from compiler.utilities import code_to_ir_string
 
 
 # mypy: ignore-errors
-
-def string_ir(code: str) -> str:
-    expr = parse(tokenize(code))
-    sym_tab = typecheck(expr)[1]
-    root_types = {
-        IRVar(name): func.return_type
-        for name, func in sym_tab.locals.items()
-        if isinstance(func, FunType)
-    }
-
-    ir = generate_ir(root_types, expr)
-    return "\n".join([str(i) for i in ir])
-
 
 def trim(ir_code: str) -> str:
     lines = ir_code.splitlines()
@@ -43,7 +25,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("1 + 2 * 3"))
+        self.assertEqual(trim(expect), code_to_ir_string("1 + 2 * 3"))
 
     def test_ir_assignment(self):
         expect = """
@@ -56,7 +38,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("var x: Int = 3; x = 2"))
+        self.assertEqual(trim(expect), code_to_ir_string("var x: Int = 3; x = 2"))
 
     def test_ir_and(self):
         expect = """
@@ -75,7 +57,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("true and true"))
+        self.assertEqual(trim(expect), code_to_ir_string("true and true"))
 
     def test_ir_or(self):
         expect = """
@@ -94,7 +76,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("false or true"))
+        self.assertEqual(trim(expect), code_to_ir_string("false or true"))
 
     def test_ir_multiple_labels_with_the_same_name(self):
         expect = """
@@ -117,7 +99,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("if true then false; if true then false; if true then false"))
+        self.assertEqual(trim(expect), code_to_ir_string("if true then false; if true then false; if true then false"))
 
     def test_ir_variable_unary_minus(self):
         expect = """
@@ -128,7 +110,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("-1"))
+        self.assertEqual(trim(expect), code_to_ir_string("-1"))
 
     def test_ir_while(self):
         expect = """
@@ -143,7 +125,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("while true do false"))
+        self.assertEqual(trim(expect), code_to_ir_string("while true do false"))
 
     def test_ir_break_continue(self):
         code_break = """
@@ -220,7 +202,7 @@ class TestIrGenerator(TestCase):
 
         for case, code, expect in test_cases:
             with self.subTest(msg=case):
-                self.assertEqual(trim(expect), string_ir(code))
+                self.assertEqual(trim(expect), code_to_ir_string(code))
 
     def test_ir_if_then(self):
         expect = """
@@ -233,7 +215,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("if true then false"))
+        self.assertEqual(trim(expect), code_to_ir_string("if true then false"))
 
     def test_ir_if_then_else(self):
         expect = """
@@ -258,7 +240,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("if true then (1+2) * 3 else 5 / 4"))
+        self.assertEqual(trim(expect), code_to_ir_string("if true then (1+2) * 3 else 5 / 4"))
 
     def test_ir_if_returns_unit_when_clauses_have_no_return_values(self):
         code = "if true then {print_int(2);} else {print_int(3);}"
@@ -279,7 +261,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir(code))
+        self.assertEqual(trim(expect), code_to_ir_string(code))
 
     def test_ir_block_expression(self):
         expect = """
@@ -290,7 +272,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("{{2%2};}"))
+        self.assertEqual(trim(expect), code_to_ir_string("{{2%2};}"))
 
     def test_ir_variable_declaration(self):
         expect = """
@@ -303,7 +285,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir("var x: Bool = true; x != false"))
+        self.assertEqual(trim(expect), code_to_ir_string("var x: Bool = true; x != false"))
 
     def test_ir_builtin_function_calls(self):
         print_int = """
@@ -333,7 +315,7 @@ class TestIrGenerator(TestCase):
 
         for case, code, expect in test_cases:
             with self.subTest(msg=case, code=code):
-                self.assertEqual(trim(expect), string_ir(code))
+                self.assertEqual(trim(expect), code_to_ir_string(code))
 
     def test_simple_function_call_case(self):
         code = """
@@ -365,7 +347,7 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir(code))
+        self.assertEqual(trim(expect), code_to_ir_string(code))
 
     def test_ridiculous_function_call_case(self):
         code = """
@@ -475,4 +457,4 @@ class TestIrGenerator(TestCase):
         Return(unit)
         """
 
-        self.assertEqual(trim(expect), string_ir(code))
+        self.assertEqual(trim(expect), code_to_ir_string(code))

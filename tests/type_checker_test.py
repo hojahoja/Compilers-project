@@ -4,12 +4,13 @@ from compiler.c_types import Int, Bool, Unit
 from compiler.parser import parse
 from compiler.tokenizer import tokenize
 from compiler.type_checker import typecheck
+from compiler.utilities import parse_code_and_typecheck
 
 
 # mypy: ignore-errors
 
 def check(code: str):
-    return typecheck(parse(tokenize(code)))[0]
+    return parse_code_and_typecheck(code)
 
 
 class TestTypeChecker(TestCase):

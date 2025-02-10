@@ -1,19 +1,13 @@
 import re
 from unittest import TestCase
 
-from compiler.assembly_generator import generate_assembly
-from compiler.ir_generator import generate_ir, ROOT_TYPES
-from compiler.parser import parse
-from compiler.tokenizer import tokenize
-from compiler.type_checker import typecheck
+from compiler.utilities import source_code_to_assembly
 
 
 # mypy: ignore-errors
 
 def assemble(code: str) -> str:
-    expression = parse(tokenize(code))
-    typecheck(expression)
-    return generate_assembly(generate_ir(ROOT_TYPES, expression))
+    return source_code_to_assembly(code)
 
 
 def trim(code: str, remove_bp: bool = True) -> str:
@@ -131,7 +125,7 @@ class TestAssemblyGenerator(TestCase):
         self.assertEqual(trim(expect), trim(assemble("1 + 2 - 3 * 4 / 2;")))
 
     def test_assemble_comparison(self):
-        expect =  """
+        expect = """
         # LoadBoolConst(True, x)
         movq $1, -8(%rbp)
     

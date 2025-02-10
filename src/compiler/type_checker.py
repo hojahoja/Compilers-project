@@ -9,7 +9,7 @@ def typecheck(root_node: ast.Expression | ast.Module) -> tuple[Type, SymTab[Type
     root_table: SymTab[Type] = SymTab({
         "print_int": FunType("function", (Int,), Unit),
         "print_bool": FunType("function", (Bool,), Unit),
-        "read_int": FunType("function", (Int,), Int),
+        "read_int": FunType("function", (), Int),
         "+": FunType("operator", (Int, Int), Int),
         "-": FunType("operator", (Int, Int), Int),
         "*": FunType("operator", (Int, Int), Int),

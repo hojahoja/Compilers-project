@@ -1,4 +1,3 @@
-import sys
 import typing
 from typing import Generator
 
@@ -6,10 +5,8 @@ import compiler.bast as ast
 import compiler.ir as ir
 from compiler.c_types import Type, Unit, Bool, Int
 from compiler.ir import IRVar
-from compiler.parser import parse
 from compiler.symtab import SymTab
-from compiler.tokenizer import Location, tokenize
-from compiler.type_checker import typecheck
+from compiler.tokenizer import Location
 
 ROOT_TYPES: dict[IRVar, Type] = {
     IRVar("print_int"): Unit,
@@ -31,24 +28,38 @@ ROOT_TYPES: dict[IRVar, Type] = {
 }
 
 
-def generate_ir(root_types: dict[IRVar, Type], root_node: ast.Expression | ast.Module) -> list[ir.Instruction]:
-    instructions: list[ir.Instruction] = []
+def generate_ir(root_types: dict[IRVar, Type], root_node: ast.Expression | ast.Module) -> dict[
+    str, list[ir.Instruction]]:
+    instructions: dict[str, list[ir.Instruction]] = {}
+
     if isinstance(root_node, ast.Module):
 
         for node in root_node.body:
+            instruction_list: list[ir.Instruction] = []
             if isinstance(node, ast.FuncDef):
+
                 function_types = root_types.copy()
+
+                param_str: str = ""
                 for param in node.params:
                     function_types[IRVar(param.name)] = param.type_expression.type
-                generate_ir_body(function_types, node.body, instructions)
+                    param_str += str(param.name) + ", "
+                generate_ir_body(function_types, node.body, instruction_list)
+                param_str = param_str[:-2] if param_str else ""
+                instructions[f"{node.name}({param_str})"] = instruction_list
             else:
-                generate_ir_body(root_types, node, instructions)
+                generate_ir_body(root_types, node, instruction_list)
+                instructions["main()"] = instruction_list
+
     else:
-        generate_ir_body(root_types, root_node, instructions, is_function=False)
+        instruction_list = []
+        generate_ir_body(root_types, root_node, instruction_list, is_function=False)
+        instructions["main()"] = instruction_list
     return instructions
 
 
-def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, ins: list[ir.Instruction], is_function: bool = True) -> list[
+def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, ins: list[ir.Instruction],
+                     is_function: bool = True) -> list[
     ir.Instruction]:
     var_types: dict[IRVar, Type] = root_types.copy()
 
@@ -278,27 +289,12 @@ def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, i
     var_final_result: IRVar = visit(root_symtable, root_expr)
     if is_function:
         if not isinstance(ins[-1], ir.Return):
-            ins.append(ir.Return(root_expr.location ,var_unit))
+            ins.append(ir.Return(root_expr.location, var_unit))
     else:
         if var_types[var_final_result] == Int:
             ins.append(ir.Call(root_loc, root_symtable.require("print_int"), [var_final_result], new_var(Int)))
         elif var_types[var_final_result] == Bool:
             ins.append(ir.Call(root_loc, root_symtable.require("print_bool"), [var_final_result], new_var(Bool)))
-        ins.append(ir.Return(root_expr.location ,var_unit))
+        ins.append(ir.Return(root_expr.location, var_unit))
 
     return ins
-
-
-def stringify_ir(expressions: list[ir.Instruction]) -> str:
-    return "\n".join([str(expr) for expr in expressions])
-
-
-def code_to_ir(code: str) -> list[ir.Instruction]:
-    ast_expr: ast.Expression | ast.Module = parse(tokenize(code))
-    typecheck(ast_expr)
-    return generate_ir(ROOT_TYPES, ast_expr)
-
-
-if __name__ == "__main__":
-    readable_ir = stringify_ir(code_to_ir(sys.argv[1]))
-    print(readable_ir)
