@@ -33,20 +33,22 @@ ROOT_TYPES: dict[IRVar, Type] = {
 
 def generate_ir(root_types: dict[IRVar, Type], root_node: ast.Expression | ast.Module) -> list[ir.Instruction]:
     instructions: list[ir.Instruction] = []
-    module_node: ast.Module | ast.FuncDef | ast.Expression = root_node
     if isinstance(root_node, ast.Module):
-        for node in root_node.body[:-1]:
-            if isinstance(node, ast.FuncDef):
-                root_types[IRVar(node.name)] = node.type
-                pass
 
-        module_node = root_node.body[-1]
-    if isinstance(module_node, ast.Expression):
-        generate_ir_body(root_types, module_node, instructions)
+        for node in root_node.body:
+            if isinstance(node, ast.FuncDef):
+                function_types = root_types.copy()
+                for param in node.params:
+                    function_types[IRVar(param.name)] = param.type_expression.type
+                generate_ir_body(function_types, node.body, instructions)
+            else:
+                generate_ir_body(root_types, node, instructions)
+    else:
+        generate_ir_body(root_types, root_node, instructions, is_function=False)
     return instructions
 
 
-def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, ins: list[ir.Instruction]) -> list[
+def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, ins: list[ir.Instruction], is_function: bool = True) -> list[
     ir.Instruction]:
     var_types: dict[IRVar, Type] = root_types.copy()
 
@@ -70,6 +72,8 @@ def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, i
 
     def new_var(t: Type) -> IRVar:
         variable: IRVar = next(ir_vars)
+        while variable in var_types:
+            variable = next(ir_vars)
         var_types[variable] = t
 
         return variable
@@ -248,17 +252,20 @@ def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, i
                 ins.append(ir.Copy(loc, dec_value, dec_variable))
                 st.add_local(expr.identifier.name, dec_variable)
 
+            case ast.ReturnExpression():
+                if expr.result:
+                    result: IRVar = visit(st, expr.result)
+                    ins.append(ir.Return(loc, result))
+                else:
+                    ins.append(ir.Return(loc, var_unit))
+
             case ast.FuncExpression():
                 func_vars: list[IRVar] = [visit(st, a) for a in expr.args]
                 func: IRVar = st.require(expr.identifier.name)
 
-                if expr.identifier.name == "read_int":
-                    result_var: IRVar = new_var(Int)
-                    ins.append(ir.Call(loc, func, func_vars, result_var))
-                    return result_var
-                else:
-                    ins.append(ir.Call(loc, func, func_vars, new_var(expr.identifier.type)))
-                    return var_unit
+                result_var: IRVar = new_var(var_types[func])
+                ins.append(ir.Call(loc, func, func_vars, result_var))
+                return result_var
 
             case _:
                 raise Exception(f"{loc}: unexpected error")
@@ -269,10 +276,15 @@ def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, i
 
     ins.append(new_label("start"))
     var_final_result: IRVar = visit(root_symtable, root_expr)
-    if var_types[var_final_result] == Int:
-        ins.append(ir.Call(root_loc, root_symtable.require("print_int"), [var_final_result], new_var(Int)))
-    if var_types[var_final_result] == Bool:
-        ins.append(ir.Call(root_loc, root_symtable.require("print_bool"), [var_final_result], new_var(Bool)))
+    if is_function:
+        if not isinstance(ins[-1], ir.Return):
+            ins.append(ir.Return(root_expr.location ,var_unit))
+    else:
+        if var_types[var_final_result] == Int:
+            ins.append(ir.Call(root_loc, root_symtable.require("print_int"), [var_final_result], new_var(Int)))
+        elif var_types[var_final_result] == Bool:
+            ins.append(ir.Call(root_loc, root_symtable.require("print_bool"), [var_final_result], new_var(Bool)))
+        ins.append(ir.Return(root_expr.location ,var_unit))
 
     return ins
 

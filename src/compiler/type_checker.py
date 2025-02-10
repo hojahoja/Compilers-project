@@ -3,7 +3,7 @@ from compiler.c_types import Int, Bool, Unit, Type, FunType
 from compiler.symtab import SymTab
 
 
-def typecheck(root_node: ast.Expression | ast.Module) -> Type:
+def typecheck(root_node: ast.Expression | ast.Module) -> tuple[Type, SymTab[Type]]:
     known_types: dict[str, Type] = {"Bool": Bool, "Int": Int, "Unit": Unit}
 
     root_table: SymTab[Type] = SymTab({
@@ -19,6 +19,8 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
         "<=": FunType("operator", (Int, Int), Bool),
         ">": FunType("operator", (Int, Int), Bool),
         ">=": FunType("operator", (Int, Int), Bool),
+        "==": FunType("operator", (), Bool),
+        "!=": FunType("operator", (), Bool),
         "unary_-": FunType("operator", (Int,), Int),
         "unary_not": FunType("operator", (Bool,), Bool),
         "and": FunType("operator", (Bool, Bool), Bool),
@@ -120,7 +122,7 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
                 if function_return_value:
                     t1 = assign_type(node.result, table)
                     if t1 == function_return_value:
-                        return t1
+                        return Unit
                     raise TypeError(f'{node.location}: expected {function_return_value}, got {t1}')
 
                 raise SyntaxError(f'{node.location}: "return" outside function')
@@ -182,7 +184,6 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
             print()
         function_return_value = None
 
-
     def init_typechecker() -> ast.Expression | None:
         if isinstance(root_node, ast.Module):
             functions = [funcdef for funcdef in root_node.body if isinstance(funcdef, ast.FuncDef)]
@@ -196,4 +197,5 @@ def typecheck(root_node: ast.Expression | ast.Module) -> Type:
             return root_node
 
     root_expression: ast.Expression | None = init_typechecker()
-    return assign_type(root_expression, root_table)
+
+    return assign_type(root_expression, SymTab(parent=root_table)), root_table

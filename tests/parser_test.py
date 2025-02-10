@@ -608,6 +608,7 @@ class TestParser(TestCase):
             ("Missing colon between params", "fun f (a: Int b: Int) {}", SyntaxError, r'line=1.*mn=15.* expected: ","'),
             ("Ends with a semicolon", "fun f() {};a", SyntaxError, r'line=1.*mn=11.* literal or an identifier'),
             ('Empty return needs a ";"', "fun f() {return}", SyntaxError, r'line=1.*mn=16.* literal or an identifier'),
+            ("missing;", "fun f(): Int {return 2 1; return 2}", SyntaxError, r"line=1.*mn=24.* expected ';'"),
         ]
 
         for case, code, exception, error_msg in test_cases:

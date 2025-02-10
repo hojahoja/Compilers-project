@@ -9,7 +9,7 @@ from compiler.type_checker import typecheck
 # mypy: ignore-errors
 
 def check(code: str):
-    return typecheck(parse(tokenize(code)))
+    return typecheck(parse(tokenize(code)))[0]
 
 
 class TestTypeChecker(TestCase):
@@ -225,6 +225,32 @@ class TestTypeChecker(TestCase):
         fun k() {g()}
         """
 
+        self.assertEqual(Unit, check(code))
+
+    def test_typecheck_complex_case(self):
+
+        code = """
+        fun f(read: Bool): Int {
+            var x = 0;
+            if read then {
+                var x: Int = read_int();
+            } else {
+                return 9001
+            }
+            return x            
+        }
+        fun k () {
+            var x: Int = 1;
+            var y: Bool = true;
+            while x != 9001 do {
+                
+                if x < 0 then y = false;
+                x = f(true)
+            }
+        }
+        
+        k()
+        """
         self.assertEqual(Unit, check(code))
 
     def test_typecheck_function_return_values(self):

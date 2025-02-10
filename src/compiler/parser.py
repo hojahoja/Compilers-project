@@ -106,8 +106,8 @@ def parse(tokens: list[Token]) -> ast.Module | ast.Expression:
             if peek().text == "}" or peek().type == "end":
                 statements.append(ast.Literal(None, location=peek().location))
         else:
-            types: tuple[str, ...] = ("int_literal", "bool_literal", "identifier")
-            expressions: tuple[Type[ast.Expression], ...] = (ast.Identifier, ast.Literal)
+            types: tuple[str, ...] = ("int_literal", "bool_literal", "identifier", "return")
+            expressions: tuple[Type[ast.Expression], ...] = (ast.Identifier, ast.Literal, ast.ReturnExpression)
 
             if isinstance(statements[-1], expressions) and (peek().type in types or peek().text == "{"):
                 raise SyntaxError(f"{peek().location}: expected ';'")
@@ -199,7 +199,6 @@ def parse(tokens: list[Token]) -> ast.Module | ast.Expression:
         consume("return")
         expr: ast.Expression | None = parse_expression() if peek().text != ";" else None
         return ast.ReturnExpression(expr, location=location)
-
 
     def parse_parenthesized() -> ast.Expression:
         consume("(")

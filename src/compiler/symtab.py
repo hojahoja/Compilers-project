@@ -8,7 +8,7 @@ class SymTab[T]:
     parent: Self | None = None
 
     def get_value(self, symbol: str) -> T | None:
-        symbols: SymTab[T]= self
+        symbols: SymTab[T] = self
         while symbols.parent and symbol not in symbols.locals:
             symbols = symbols.parent
         return symbols.locals.get(symbol)

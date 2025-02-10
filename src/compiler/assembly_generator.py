@@ -41,7 +41,7 @@ def get_all_ir_variables(instructions: list[ir.Instruction]) -> list[ir.IRVar]:
     }
 
     def add(val: ir.IRVar) -> None:
-        if val not in result_set:
+        if val not in result_set and val.name != "unit":
             result_list.append(val)
             result_set.add(val)
 
