@@ -74,6 +74,16 @@ class CondJump(Instruction):
     then_label: Label
     else_label: Label
 
+
 @dataclass(frozen=True)
 class Return(Instruction):
     result: IRVar
+
+
+@dataclass(frozen=True)
+class FunctionDef(Instruction):
+    name: str
+    args: list[IRVar]
+
+    def __str__(self) -> str:
+        return f"{self.name}({", ".join(arg.name for arg in self.args)})"

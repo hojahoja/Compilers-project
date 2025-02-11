@@ -8,60 +8,50 @@ from compiler.ir import IRVar
 from compiler.symtab import SymTab
 from compiler.tokenizer import Location
 
-ROOT_TYPES: dict[IRVar, Type] = {
-    IRVar("print_int"): Unit,
-    IRVar("print_bool"): Unit,
-    IRVar("read_int"): Int,
-    IRVar("+"): Int,
-    IRVar("-"): Int,
-    IRVar("*"): Int,
-    IRVar("/"): Int,
-    IRVar("%"): Int,
-    IRVar("<"): Bool,
-    IRVar("<="): Bool,
-    IRVar(">"): Bool,
-    IRVar(">="): Bool,
-    IRVar("=="): Bool,
-    IRVar("!="): Bool,
-    IRVar("unary_-"): Int,
-    IRVar("unary_not"): Bool,
-}
+type IrTypes = dict[IRVar, Type]
+type IrList = list[ir.Instruction]
+type IrDict = dict[str, IrList]
 
 
-def generate_ir(root_types: dict[IRVar, Type], root_node: ast.Expression | ast.Module) -> dict[
-    str, list[ir.Instruction]]:
+def generate_ir(root_types: IrTypes, root_node: ast.Expression | ast.Module) -> IrDict:
     instructions: dict[str, list[ir.Instruction]] = {}
 
-    if isinstance(root_node, ast.Module):
+    def add_instructions(func: ir.FunctionDef, ir_list: IrList, types: IrTypes, body: ast.Expression,
+                         is_function: bool) -> None:
+        instruction_list.append(func)
+        generate_ir_body(types, body, ir_list, is_function)
+        instructions[func_ir.name] = ir_list
 
+    if isinstance(root_node, ast.Module):
         for node in root_node.body:
             instruction_list: list[ir.Instruction] = []
             if isinstance(node, ast.FuncDef):
 
                 function_types = root_types.copy()
+                param_list: list[IRVar] = []
 
-                param_str: str = ""
                 for param in node.params:
-                    function_types[IRVar(param.name)] = param.type_expression.type
-                    param_str += str(param.name) + ", "
-                generate_ir_body(function_types, node.body, instruction_list)
-                param_str = param_str[:-2] if param_str else ""
-                instructions[f"{node.name}({param_str})"] = instruction_list
-            else:
-                generate_ir_body(root_types, node, instruction_list)
-                instructions["main()"] = instruction_list
+                    param_var = IRVar(param.name)
+                    param_list.append(param_var)
+                    function_types[param_var] = param.type_expression.type
 
+                func_ir: ir.FunctionDef = ir.FunctionDef(node.location, node.name, param_list)
+                add_instructions(func_ir, instruction_list, function_types, node.body, is_function=True)
+            else:
+                func_ir = ir.FunctionDef(node.location, "main", [])
+                add_instructions(func_ir, instruction_list, root_types, node, is_function=False)
     else:
         instruction_list = []
-        generate_ir_body(root_types, root_node, instruction_list, is_function=False)
-        instructions["main()"] = instruction_list
+        func_ir = ir.FunctionDef(root_node.location, "main", [])
+        add_instructions(func_ir, instruction_list, root_types, root_node, is_function=False)
+
     return instructions
 
 
-def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, ins: list[ir.Instruction],
+def generate_ir_body(root_types: IrTypes, root_expr: ast.Expression, ins: list[ir.Instruction],
                      is_function: bool = True) -> list[
     ir.Instruction]:
-    var_types: dict[IRVar, Type] = root_types.copy()
+    var_types: IrTypes = root_types.copy()
 
     var_unit = IRVar("unit")
     var_types[var_unit] = Unit
@@ -78,13 +68,17 @@ def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, i
             yield variable
 
     ir_vars: Generator[IRVar, None, None] = ir_var_generator("x", IRVar)
-
     ir_labels_adjust: dict[str, int] = {}
 
+    new_var_count: int = 0
+
     def new_var(t: Type) -> IRVar:
+        nonlocal new_var_count
         variable: IRVar = next(ir_vars)
+        new_var_count += 1
         while variable in var_types:
             variable = next(ir_vars)
+            new_var_count += 1
         var_types[variable] = t
 
         return variable
@@ -236,12 +230,16 @@ def generate_ir_body(root_types: dict[IRVar, Type], root_expr: ast.Expression, i
                     # Then
                     ins.append(l_then)
                     then_var: IRVar = visit(st, expr.then_clause)
+                    if then_var.name == "unit":
+                        then_var = IRVar("Unit")
                     ins.append(ir.Copy(loc, then_var, copy_var))
                     ins.append(ir.Jump(loc, l_if_end))
 
                     # Else
                     ins.append(l_else)
                     else_var: IRVar = visit(st, expr.else_clause)
+                    if else_var.name == "unit":
+                        else_var = IRVar("Unit")
                     ins.append(ir.Copy(loc, else_var, copy_var))
 
                     # If End

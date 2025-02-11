@@ -12,6 +12,9 @@ class Locals:
         self._var_to_location = {var: f"-{i * 8}(%rbp)" for i, var in enumerate(variables, start=1)}
         self._stack_used = len(variables)
 
+    def in_locals(self, v: ir.IRVar) -> bool:
+        return v in self._var_to_location
+
     def get_ref(self, v: ir.IRVar) -> str:
         return self._var_to_location[v]
 
@@ -19,7 +22,7 @@ class Locals:
         return self._stack_used
 
 
-def get_all_ir_variables(instructions: list[ir.Instruction]) -> list[ir.IRVar]:
+def get_all_ir_variables(instructions: list[ir.Instruction], reserved: set[ir.IRVar]) -> list[ir.IRVar]:
     result_list: list[ir.IRVar] = []
     result_set: set[ir.IRVar] = {
         ir.IRVar("print_int"),
@@ -45,7 +48,9 @@ def get_all_ir_variables(instructions: list[ir.Instruction]) -> list[ir.IRVar]:
             result_list.append(val)
             result_set.add(val)
 
-    for ins in instructions:
+    result_set.update(reserved)
+
+    for ins in instructions[1:]:
         for field in dataclasses.fields(ins):
             value: ir.IRVar = getattr(ins, field.name)
             if isinstance(value, ir.IRVar):
@@ -58,30 +63,48 @@ def get_all_ir_variables(instructions: list[ir.Instruction]) -> list[ir.IRVar]:
     return result_list
 
 
-def generate_assembly(instructions: list[ir.Instruction]) -> str:
+def generate_assembly(instructions_dict: dict[str, list[ir.Instruction]]) -> str:
+    reserved_vars: set[ir.IRVar] = set()
+    assembly_code: list[str] = []
+    top_section: str = """
+    .extern print_int
+    .extern print_bool
+    .extern read_int
+    .section .text
+    """
+    assembly_code.append(top_section)
+    for func, ins_list in instructions_dict.items():
+        reserved_vars.add(ir.IRVar(func))
+        assembly_code.append(generate_assembly_function(ins_list, func, reserved_vars))
+    return "\n".join(assembly_code)
+
+
+def generate_assembly_function(instructions: list[ir.Instruction], func: str, reserved_vars: set[ir.IRVar]) -> str:
     lines: list[str] = []
 
     def emit(line: str) -> None:
         lines.append(line)
 
-    local_vars: Locals = Locals(variables=get_all_ir_variables(instructions))
+    local_vars: Locals = Locals(variables=get_all_ir_variables(instructions, reserved_vars))
 
     call_registers: tuple[str, ...] = ("%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9")
 
-    emit("    .extern print_int")
-    emit("    .extern print_bool")
-    emit("    .extern read_int")
-
-    emit("    .section .text")
-
-    emit("    # main()")
-    emit("    .global main")
-    emit("    .type main, @function")
+    emit(f"    # {func}()")
+    emit(f"    .global {func}")
+    emit(f"    .type {func}, @function")
 
     emit("")
-    emit("    main:")
+    emit(f"    {func}:")
     emit("    pushq %rbp")
     emit("    movq %rsp, %rbp")
+
+    vars_used: int = 0
+    if isinstance(instructions[0], ir.FunctionDef):
+        for arg, reg in zip(instructions[0].args, call_registers):
+            if local_vars.in_locals(arg):
+                vars_used += 1
+                emit(f"    movq {reg}, {local_vars.get_ref(arg)}")
+
     emit(f"    subq ${local_vars.stack_used() * 8 or 8}, %rsp")
 
     for ins in instructions:
@@ -89,7 +112,7 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
         emit("    # " + str(ins))
         match ins:
             case ir.Label():
-                emit(f"    .Lmain_{ins.name}:")
+                emit(f"    .L{func}_{ins.name}:")
 
             case ir.LoadIntConst():
                 if -2 ** 31 <= ins.value < 2 ** 31:
@@ -102,7 +125,7 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
                 emit(f"    movq ${int(ins.value)}, {local_vars.get_ref(ins.dest)}")
 
             case ir.Jump():
-                emit(f"    jmp .Lmain_{ins.label.name}")
+                emit(f"    jmp .L{func}_{ins.label.name}")
 
             case ir.Copy():
                 emit(f"    movq {local_vars.get_ref(ins.source)}, %rax")
@@ -110,8 +133,8 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
 
             case ir.CondJump():
                 emit(f"    cmpq $0, {local_vars.get_ref(ins.cond)}")
-                emit(f"    jne .Lmain_{ins.then_label.name}")
-                emit(f"    jmp .Lmain_{ins.else_label.name}")
+                emit(f"    jne .L{func}_{ins.then_label.name}")
+                emit(f"    jmp .L{func}_{ins.else_label.name}")
 
             case ir.Call():
                 args: list[str] = [local_vars.get_ref(var) for var in ins.args]
@@ -121,20 +144,22 @@ def generate_assembly(instructions: list[ir.Instruction]) -> str:
                     call(intrinsic_args)
                     emit(f"movq %rax, {local_vars.get_ref(ins.dest)}")
                 else:
-                    emit(f"subq ${8}, %rsp") # This changes when function defs are supported
+                    stack_not_aligned: bool = local_vars.stack_used() * 8 % 16 != 0
+                    if stack_not_aligned:
+                        emit(f"subq $8, %rsp")  # This changes when function defs are supported or does it?
                     for var, reg in zip(args, call_registers):
                         emit(f"movq {var}, {reg}")
 
                     emit(f"callq {ins.fun.name}")
                     emit(f"movq %rax, {local_vars.get_ref(ins.dest)}")
-                    emit(f"addq ${8}, %rsp")
+                    if stack_not_aligned:
+                        emit(f"addq $8, %rsp")
 
-
-    # set 0 as return value and restore stack
-    emit("")
-    emit("    movq $0, %rax")
-    emit("    movq %rbp, %rsp")
-    emit("    popq %rbp")
-    emit("    ret")
+            case ir.Return():
+                return_value = f"{local_vars.get_ref(ins.result)}" if local_vars.in_locals(ins.result) else "$0"
+                emit(f"    movq {return_value}, %rax")
+                emit("    movq %rbp, %rsp")
+                emit("    popq %rbp")
+                emit("    ret")
 
     return "\n".join(lines)

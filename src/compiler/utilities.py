@@ -50,6 +50,4 @@ def code_to_ir_string(code: str, filename: str = "") -> str:
 
 
 def source_code_to_assembly(code: str, filename: str = "") -> str:
-    ir_dict = code_to_ir(code, filename)
-    ir_list = [inst for ir_list in ir_dict.values() for inst in ir_list]
-    return generate_assembly(ir_list)
+    return generate_assembly(code_to_ir(code, filename))

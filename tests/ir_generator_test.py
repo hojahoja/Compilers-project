@@ -15,6 +15,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_simple_calculation(self):
         expect = """
+        main()
         Label(start)
         LoadIntConst(1, x1)
         LoadIntConst(2, x2)
@@ -29,6 +30,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_assignment(self):
         expect = """
+        main()
         Label(start)
         LoadIntConst(3, x1)
         Copy(x1, x2)
@@ -42,6 +44,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_and(self):
         expect = """
+        main()
         Label(start)
         LoadBoolConst(True, x1)
         CondJump(x1, Label(and_right), Label(and_skip))
@@ -61,6 +64,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_or(self):
         expect = """
+        main()
         Label(start)
         LoadBoolConst(False, x1)
         CondJump(x1, Label(or_skip), Label(or_right))
@@ -80,6 +84,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_multiple_labels_with_the_same_name(self):
         expect = """
+        main()
         Label(start)
         LoadBoolConst(True, x1)
         CondJump(x1, Label(then), Label(if_end))
@@ -103,6 +108,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_variable_unary_minus(self):
         expect = """
+        main()
         Label(start)
         LoadIntConst(1, x1)
         Call(unary_-, [x1], x2)
@@ -114,6 +120,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_while(self):
         expect = """
+        main()
         Label(start)
         Label(while_start)
         LoadBoolConst(True, x1)
@@ -148,6 +155,7 @@ class TestIrGenerator(TestCase):
         """
 
         expect_break = """
+        main()
         Label(start)
         LoadIntConst(0, x1)
         Copy(x1, x2)
@@ -166,14 +174,14 @@ class TestIrGenerator(TestCase):
         CondJump(x8, Label(then), Label(else))
         Label(then)
         Jump(Label(while_end2))
-        Copy(unit, x9)
+        Copy(Unit, x9)
         Jump(Label(if_end))
         Label(else)
         LoadIntConst(1, x10)
         Call(+, [x2, x10], x11)
         Copy(x11, x2)
         Jump(Label(while_end2))
-        Copy(unit, x9)
+        Copy(Unit, x9)
         Label(if_end)
         Jump(Label(while_start2))
         Label(while_end2)
@@ -206,6 +214,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_if_then(self):
         expect = """
+        main()
         Label(start)
         LoadBoolConst(True, x1)
         CondJump(x1, Label(then), Label(if_end))
@@ -219,6 +228,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_if_then_else(self):
         expect = """
+        main()
         Label(start)
         LoadBoolConst(True, x1)
         CondJump(x1, Label(then), Label(else))
@@ -245,18 +255,19 @@ class TestIrGenerator(TestCase):
     def test_ir_if_returns_unit_when_clauses_have_no_return_values(self):
         code = "if true then {print_int(2);} else {print_int(3);}"
         expect = """
+        main()
         Label(start)
         LoadBoolConst(True, x1)
         CondJump(x1, Label(then), Label(else))
         Label(then)
         LoadIntConst(2, x3)
         Call(print_int, [x3], x4)
-        Copy(unit, x2)
+        Copy(Unit, x2)
         Jump(Label(if_end))
         Label(else)
         LoadIntConst(3, x5)
         Call(print_int, [x5], x6)
-        Copy(unit, x2)
+        Copy(Unit, x2)
         Label(if_end)
         Return(unit)
         """
@@ -265,6 +276,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_block_expression(self):
         expect = """
+        main()
         Label(start)
         LoadIntConst(2, x1)
         LoadIntConst(2, x2)
@@ -276,6 +288,7 @@ class TestIrGenerator(TestCase):
 
     def test_ir_variable_declaration(self):
         expect = """
+        main()
         Label(start)
         LoadBoolConst(True, x1)
         Copy(x1, x2)
@@ -289,18 +302,21 @@ class TestIrGenerator(TestCase):
 
     def test_ir_builtin_function_calls(self):
         print_int = """
+        main()
         Label(start)
         LoadIntConst(5, x1)
         Call(print_int, [x1], x2)
         Return(unit)
         """
         print_bool = """
+        main()
         Label(start)
         LoadBoolConst(True, x1)
         Call(print_bool, [x1], x2)
         Return(unit)
         """
         read_int = """
+        main()
         Label(start)
         Call(read_int, [], x1)
         Call(print_int, [x1], x2)
@@ -332,10 +348,12 @@ class TestIrGenerator(TestCase):
         """
 
         expect = """
+        lol(x1, y)
         Label(start)
         LoadIntConst(2, x2)
         Copy(x2, x1)
         Return(x1)
+        main()
         Label(start)
         LoadIntConst(5, x1)
         Copy(x1, x2)
@@ -378,6 +396,7 @@ class TestIrGenerator(TestCase):
         """
 
         expect = """
+        f(read)
         Label(start)
         LoadIntConst(0, x1)
         Copy(x1, x2)
@@ -385,14 +404,15 @@ class TestIrGenerator(TestCase):
         Label(then)
         Call(read_int, [], x4)
         Copy(x4, x5)
-        Copy(unit, x3)
+        Copy(Unit, x3)
         Jump(Label(if_end))
         Label(else)
         LoadIntConst(9001, x6)
         Return(x6)
-        Copy(unit, x3)
+        Copy(Unit, x3)
         Label(if_end)
         Return(x2)
+        k()
         Label(start)
         LoadIntConst(1, x1)
         Copy(x1, x2)
@@ -416,6 +436,7 @@ class TestIrGenerator(TestCase):
         Jump(Label(while_start))
         Label(while_end)
         Return(unit)
+        main()
         Label(start)
         Call(k, [], x1)
         LoadBoolConst(True, x2)
